@@ -24,10 +24,17 @@ jobs:
           npm install --legacy-peer-deps
           npm run build
 
-      - name: Setup Capacitor
+      - name: Setup Capacitor Configuration
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps
-          npx cap init WebZip com.webzip.app --web-dir dist
+          # كتابة ملف الإعدادات كـ JSON مباشر لتفادي تعارض TypeScript
+          cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "com.webzip.app",
+            "appName": "WebZip",
+            "webDir": "dist"
+          }
+          EOF
           npx cap add android
           npx cap sync android
 
