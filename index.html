@@ -1,0 +1,4630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>WebZip - Local Storage & Archive Manager</title>
+  <meta name="description" content="A fast, responsive, client-side web archive and storage manager. Browse local folders, inspect zip archives, preview ANY file with the Universal Viewer, and compress files offline." />
+  <meta property="og:title" content="WebZip - Local Storage & Archive Manager" />
+  <meta property="og:description" content="Universal client-side archive manager with directory picker, zip extraction, batch actions, and universal file preview." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- JSZip CDN for in-browser compression and decompression -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    /* CSS Custom Properties for Light & Dark Themes */
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      
+      /* Light Theme */
+      --bg-body: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --bg-hover: #e2e8f0;
+      --bg-active: #cbd5e1;
+      
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      
+      --border-color: #e2e8f0;
+      --border-subtle: #f1f5f9;
+      
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-subtle: #eff6ff;
+      --primary-border: #bfdbfe;
+      
+      --accent: #0284c7;
+      --accent-subtle: #e0f2fe;
+      
+      --success: #16a34a;
+      --success-hover: #15803d;
+      --success-subtle: #f0fdf4;
+      
+      --warning: #d97706;
+      --warning-subtle: #fffbeb;
+      
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --danger-subtle: #fef2f2;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+    }
+
+    /* Dark Theme */
+    [data-theme="dark"] {
+      --bg-body: #0b0f17;
+      --bg-surface: #111827;
+      --bg-surface-elevated: #1f2937;
+      --bg-subtle: #172033;
+      --bg-hover: #1e293b;
+      --bg-active: #334155;
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      
+      --border-color: #1e293b;
+      --border-subtle: #192231;
+      
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-subtle: #1e293b;
+      --primary-border: #1d4ed8;
+      
+      --accent: #38bdf8;
+      --accent-subtle: #0c4a6e;
+      
+      --success: #22c55e;
+      --success-hover: #16a34a;
+      --success-subtle: #052e16;
+      
+      --warning: #f59e0b;
+      --warning-subtle: #451a03;
+      
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --danger-subtle: #450a0a;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.65), 0 8px 10px -6px rgba(0, 0, 0, 0.65);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      line-height: 1.5;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    button, input, select {
+      font-family: inherit;
+      color: inherit;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--text-subtle);
+      border-radius: 999px;
+      opacity: 0.5;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* Header */
+    .app-header {
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-inner {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 0.65rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .brand-badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.45rem;
+      background: var(--primary-subtle);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      border-radius: 999px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.8rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border-color: var(--border-color);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background-color: var(--bg-hover);
+    }
+
+    .btn-ghost {
+      background-color: transparent;
+      color: var(--text-muted);
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background-color: var(--bg-hover);
+      color: var(--text-main);
+    }
+
+    .btn-success {
+      background-color: var(--success);
+      color: #ffffff;
+    }
+    .btn-success:hover:not(:disabled) {
+      background-color: var(--success-hover);
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: #ffffff;
+    }
+    .btn-danger:hover:not(:disabled) {
+      background-color: var(--danger-hover);
+    }
+
+    .btn-icon-only {
+      padding: 0.45rem;
+      border-radius: var(--radius-md);
+      width: 36px;
+      height: 36px;
+    }
+
+    .btn-sm {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.78rem;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Toolbar & Navigation Bar */
+    .toolbar-bar {
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.5rem 1rem;
+    }
+
+    .toolbar-inner {
+      max-width: 1600px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-breadcrumbs-box {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex: 1;
+      min-width: 220px;
+      overflow-x: auto;
+    }
+
+    .btn-nav-up {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-subtle);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .btn-nav-up:hover:not(:disabled) {
+      background-color: var(--bg-hover);
+      color: var(--primary);
+      border-color: var(--primary-border);
+    }
+
+    .btn-nav-up:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .source-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      flex-shrink: 0;
+    }
+
+    .source-tag.source-folder {
+      background-color: var(--warning-subtle);
+      color: var(--warning);
+      border: 1px solid rgba(217, 119, 6, 0.25);
+    }
+
+    .source-tag.source-zip {
+      background-color: var(--accent-subtle);
+      color: var(--accent);
+      border: 1px solid rgba(2, 132, 199, 0.25);
+    }
+
+    .breadcrumb-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .breadcrumb-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--radius-sm);
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .breadcrumb-item:hover {
+      background-color: var(--bg-hover);
+      color: var(--text-main);
+    }
+
+    .breadcrumb-item.active {
+      color: var(--text-main);
+      font-weight: 600;
+      background-color: var(--bg-subtle);
+    }
+
+    .breadcrumb-sep {
+      color: var(--text-subtle);
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .toolbar-right-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* Sorting Dropdown */
+    .sort-dropdown-box {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .sort-select {
+      padding: 0.38rem 0.65rem;
+      font-size: 0.82rem;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .sort-select:focus {
+      border-color: var(--primary);
+    }
+
+    .search-filter-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-width: 170px;
+      max-width: 260px;
+    }
+
+    .search-filter-box svg.search-icon {
+      position: absolute;
+      left: 0.65rem;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.4rem 2rem 0.4rem 2rem;
+      font-size: 0.82rem;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      background-color: var(--bg-surface);
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 0.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-subtle);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0.2rem;
+    }
+
+    .search-clear-btn.visible {
+      display: flex;
+    }
+
+    .view-toggles {
+      display: flex;
+      align-items: center;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 2px;
+    }
+
+    .view-toggle-btn {
+      background: none;
+      border: none;
+      padding: 0.35rem 0.5rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .view-toggle-btn.active {
+      background-color: var(--bg-surface);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Main Container */
+    .main-container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 1rem;
+      flex: 1;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      position: relative;
+    }
+
+    /* Landing / Empty State */
+    .empty-state-card {
+      background-color: var(--bg-surface);
+      border: 2px dashed var(--border-color);
+      border-radius: var(--radius-xl);
+      padding: 3rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      margin: 1rem 0;
+    }
+
+    .empty-state-card:hover, .empty-state-card.drag-over {
+      border-color: var(--primary);
+      background-color: var(--primary-subtle);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .dropzone-icon-stack {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dropzone-icon-bg {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(124, 58, 237, 0.12));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+
+    .dropzone-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.01em;
+    }
+
+    .dropzone-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      max-width: 540px;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .dropzone-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .features-pill-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+
+    .feature-tag {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 999px;
+      padding: 0.25rem 0.65rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* Explorer Workspace Layout */
+    .explorer-layout {
+      display: none;
+      grid-template-columns: 260px 1fr;
+      gap: 1rem;
+      flex: 1;
+    }
+
+    .explorer-layout.active {
+      display: grid;
+    }
+
+    @media (max-width: 860px) {
+      .explorer-layout {
+        grid-template-columns: 1fr;
+      }
+      .tree-sidebar {
+        display: none !important;
+      }
+    }
+
+    /* Sidebar Folder Tree */
+    .tree-sidebar {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 0.85rem 0.5rem;
+      overflow-y: auto;
+      max-height: calc(100vh - 170px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tree-sidebar-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-subtle);
+      padding: 0.25rem 0.6rem 0.5rem 0.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .tree-node {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.55rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      user-select: none;
+      transition: background 0.1s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tree-node:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .tree-node.active {
+      background-color: var(--primary-subtle);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .tree-children {
+      padding-left: 0.9rem;
+      border-left: 1px dashed var(--border-color);
+      margin-left: 0.75rem;
+    }
+
+    /* Main File Listing Container */
+    .file-view-container {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+
+    /* Floating Batch Action Bar */
+    .floating-batch-bar {
+      position: fixed;
+      bottom: 2.2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(120%);
+      background-color: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-xl);
+      border-radius: var(--radius-xl);
+      padding: 0.65rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      z-index: 55;
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+      backdrop-filter: blur(10px);
+      max-width: 95vw;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .floating-batch-bar.visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .batch-count-badge {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding-right: 0.4rem;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .file-table-wrapper {
+      overflow-x: auto;
+      flex: 1;
+      min-height: 380px;
+    }
+
+    /* Table View */
+    table.file-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    table.file-table th {
+      background-color: var(--bg-subtle);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 0.65rem 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+      user-select: none;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    table.file-table th.sortable {
+      cursor: pointer;
+    }
+
+    table.file-table th.sortable:hover {
+      color: var(--text-main);
+      background-color: var(--bg-hover);
+    }
+
+    table.file-table td {
+      padding: 0.6rem 0.85rem;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    table.file-table tbody tr {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    table.file-table tbody tr:hover {
+      background-color: var(--bg-hover);
+    }
+
+    table.file-table tbody tr.selected {
+      background-color: var(--primary-subtle);
+    }
+
+    .file-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 500;
+    }
+
+    .file-icon {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Grid View */
+    .grid-view-container {
+      display: none;
+      grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+      gap: 0.85rem;
+      padding: 1rem;
+      overflow-y: auto;
+      min-height: 380px;
+    }
+
+    .grid-view-container.active {
+      display: grid;
+    }
+
+    .grid-item {
+      background-color: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 0.6rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+      user-select: none;
+    }
+
+    .grid-item:hover {
+      background-color: var(--bg-hover);
+      border-color: var(--primary-border);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .grid-item.selected {
+      background-color: var(--primary-subtle);
+      border-color: var(--primary);
+    }
+
+    .grid-item-checkbox {
+      position: absolute;
+      top: 0.4rem;
+      left: 0.4rem;
+      cursor: pointer;
+    }
+
+    .grid-item-menu-btn {
+      position: absolute;
+      top: 0.35rem;
+      right: 0.35rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.2rem;
+      border-radius: 4px;
+    }
+
+    .grid-item-menu-btn:hover {
+      background-color: var(--bg-hover);
+      color: var(--text-main);
+    }
+
+    .grid-icon {
+      width: 44px;
+      height: 44px;
+      margin: 0.4rem 0 0.5rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .grid-name {
+      font-size: 0.8rem;
+      font-weight: 500;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 0.2rem;
+    }
+
+    .grid-meta {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* Actions in table row */
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      justify-content: flex-end;
+    }
+
+    .action-icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.3rem;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.12s;
+    }
+
+    .action-icon-btn:hover {
+      color: var(--primary);
+      background-color: var(--bg-subtle);
+    }
+
+    .btn-extract-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      background-color: var(--success-subtle);
+      color: var(--success);
+      border: 1px solid rgba(22, 163, 74, 0.3);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-extract-pill:hover {
+      background-color: var(--success);
+      color: #ffffff;
+    }
+
+    /* Context Menu / 3-Dots Dropdown */
+    .dropdown-menu {
+      position: fixed;
+      z-index: 120;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-xl);
+      min-width: 165px;
+      padding: 0.35rem 0;
+      display: none;
+      animation: menuFadeIn 0.12s ease-out;
+    }
+
+    .dropdown-menu.active {
+      display: block;
+    }
+
+    @keyframes menuFadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: background 0.12s;
+      user-select: none;
+    }
+
+    .dropdown-item:hover {
+      background-color: var(--bg-hover);
+      color: var(--primary);
+    }
+
+    .dropdown-item.danger:hover {
+      background-color: var(--danger-subtle);
+      color: var(--danger);
+    }
+
+    .dropdown-divider {
+      height: 1px;
+      background-color: var(--border-color);
+      margin: 0.25rem 0;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      background-color: var(--bg-surface);
+      border-top: 1px solid var(--border-color);
+      padding: 0.5rem 1rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .status-left, .status-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .status-indicator-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 6px var(--success);
+    }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-window {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xl);
+      width: 100%;
+      max-width: 640px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-window.large {
+      max-width: 960px;
+      max-height: 92vh;
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(15px) scale(0.97); }
+      to { transform: translateY(0) scale(1); }
+    }
+
+    .modal-header {
+      padding: 0.9rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-surface);
+      gap: 0.5rem;
+    }
+
+    .modal-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      overflow: hidden;
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.35rem;
+    }
+
+    .modal-close-btn:hover {
+      background-color: var(--bg-hover);
+      color: var(--text-main);
+    }
+
+    .modal-body {
+      padding: 1.25rem;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .modal-footer {
+      padding: 0.85rem 1.25rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.65rem;
+      background-color: var(--bg-subtle);
+    }
+
+    /* Universal Viewer Controls & Tabs */
+    .viewer-tab-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .viewer-tabs {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      padding: 2px;
+      border-radius: var(--radius-md);
+    }
+
+    .viewer-tab-btn {
+      background: none;
+      border: none;
+      padding: 0.3rem 0.65rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .viewer-tab-btn.active {
+      background-color: var(--bg-surface);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .viewer-toolbar-tools {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .preview-viewer-box {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background-color: var(--bg-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+      max-height: 60vh;
+      overflow: auto;
+      position: relative;
+    }
+
+    .preview-image-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding: 1rem;
+      overflow: auto;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      max-height: 55vh;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+      transition: transform 0.15s ease;
+      transform-origin: center center;
+    }
+
+    .preview-code-container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background: var(--bg-surface);
+    }
+
+    .preview-code-lines {
+      padding: 0.85rem 0.5rem;
+      background: var(--bg-subtle);
+      border-right: 1px solid var(--border-color);
+      color: var(--text-subtle);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      text-align: right;
+      user-select: none;
+    }
+
+    .preview-code-content {
+      padding: 0.85rem 1rem;
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: var(--text-main);
+      white-space: pre;
+      overflow-x: auto;
+      flex: 1;
+    }
+
+    .preview-code-content.wrapped {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .preview-media-player {
+      width: 90%;
+      max-width: 580px;
+      outline: none;
+      border-radius: var(--radius-md);
+    }
+
+    /* Hex Viewer Table */
+    .hex-viewer-container {
+      width: 100%;
+      padding: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      overflow-x: auto;
+    }
+
+    .hex-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .hex-table td {
+      padding: 0.18rem 0.35rem;
+      border: none;
+      white-space: pre;
+    }
+
+    .hex-offset-col {
+      width: 90px;
+      color: var(--accent);
+      user-select: none;
+      font-weight: 600;
+    }
+
+    .hex-bytes-col {
+      color: var(--text-main);
+      letter-spacing: 0.08em;
+    }
+
+    .hex-ascii-col {
+      width: 170px;
+      color: var(--text-muted);
+      border-left: 1px solid var(--border-color);
+      padding-left: 0.6rem !important;
+    }
+
+    .hex-pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.65rem;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-color);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    /* Advanced Compression Slider Box */
+    .compression-slider-box {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.85rem;
+      background: var(--bg-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .compression-slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .compression-badge {
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: var(--primary-subtle);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      font-size: 0.75rem;
+    }
+
+    .compression-range-input {
+      width: 100%;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .compression-scale-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--text-subtle);
+      padding: 0 2px;
+    }
+
+    /* Forms */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .form-input {
+      padding: 0.55rem 0.75rem;
+      font-size: 0.9rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-surface);
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .staged-file-list {
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background-color: var(--bg-subtle);
+      padding: 0.35rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .staged-file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.35rem 0.65rem;
+      background-color: var(--bg-surface);
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+    }
+
+    .staged-file-name {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 80%;
+    }
+
+    /* Progress Overlay & Bar */
+    .progress-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      padding: 1rem 0;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      background-color: var(--bg-hover);
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2563eb, #38bdf8);
+      border-radius: 999px;
+      width: 0%;
+      transition: width 0.15s ease-out;
+    }
+
+    .progress-text-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .progress-status-line {
+      font-size: 0.82rem;
+      color: var(--text-main);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Info Modal Grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 0.65rem 1rem;
+      font-size: 0.85rem;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+    }
+
+    .info-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .info-value {
+      color: var(--text-main);
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    /* Alert / Encryption Notice Box */
+    .alert-box {
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      line-height: 1.45;
+      display: flex;
+      gap: 0.65rem;
+      align-items: flex-start;
+    }
+    .alert-box.alert-warning {
+      background: var(--warning-subtle);
+      color: var(--warning);
+      border: 1px solid rgba(217, 119, 6, 0.3);
+    }
+
+    /* Toasts */
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: 380px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      box-shadow: var(--shadow-xl);
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      animation: toastSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      font-size: 0.85rem;
+      border-left: 4px solid var(--primary);
+    }
+
+    @keyframes toastSlideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .toast.toast-success { border-left-color: var(--success); }
+    .toast.toast-error { border-left-color: var(--danger); }
+    .toast.toast-warning { border-left-color: var(--warning); }
+    .toast.toast-info { border-left-color: var(--primary); }
+
+    .toast-icon {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .toast-content {
+      flex: 1;
+    }
+    .toast-title {
+      font-weight: 600;
+      margin-bottom: 0.15rem;
+    }
+    .toast-message {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+    .toast-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-subtle);
+      padding: 0.1rem;
+    }
+    .toast-close:hover {
+      color: var(--text-main);
+    }
+
+    .text-truncate {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-section" id="btnBrandHome" title="WebZip Archive & Storage Manager">
+        <div class="brand-logo">
+          <!-- Folder & Archive Icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            <polyline points="10 12 12 14 14 12"></polyline>
+            <line x1="12" y1="9" x2="12" y2="14"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">
+            WebZip
+            <span class="brand-badge">Universal</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- 1. Open Folder (showDirectoryPicker or mobile fallback) -->
+        <input type="file" id="fallbackFolderInput" webkitdirectory directory multiple class="hidden" />
+        <button class="btn btn-primary" id="btnOpenFolder" title="Open local folder using File System API or mobile directory picker">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Open Folder</span>
+        </button>
+
+        <!-- 2. Open Zip -->
+        <input type="file" id="fileArchiveInput" accept=".zip,.jar,.apk,.docx,.xlsx,.pptx,.epub,.cbz" class="hidden" />
+        <button class="btn btn-secondary" id="btnOpenArchive" title="Open an existing .zip archive">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.29 7 12 12 20.71 7"></polyline>
+          </svg>
+          <span>Open Zip</span>
+        </button>
+
+        <!-- 3. Create Zip -->
+        <button class="btn btn-secondary" id="btnNewArchive" title="Create a new .zip archive from local files">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Create Zip</span>
+        </button>
+
+        <!-- 4. Extract All (Visible in zip mode) -->
+        <button class="btn btn-success hidden" id="btnExtractAll" title="Unpack and download all files from archive">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Extract All</span>
+        </button>
+
+        <!-- Close View -->
+        <button class="btn btn-ghost btn-icon-only hidden" id="btnCloseView" title="Close current view">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+
+        <!-- Dark / Light Theme Toggle -->
+        <button class="btn btn-ghost btn-icon-only" id="btnThemeToggle" title="Toggle Dark/Light Mode">
+          <svg id="themeIconSun" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="themeIconMoon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Toolbar: Up Button + Breadcrumb Trail + Sorting + Search -->
+  <section class="toolbar-bar hidden" id="toolbarSection">
+    <div class="toolbar-inner">
+      <div class="nav-breadcrumbs-box">
+        <!-- Up one level / Back button -->
+        <button class="btn-nav-up" id="btnNavUp" title="Navigate up to parent folder">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+          </svg>
+          <span>Up</span>
+        </button>
+
+        <span class="source-tag" id="sourceIndicatorTag">Folder</span>
+
+        <!-- Clickable Breadcrumb Trail -->
+        <div class="breadcrumb-nav" id="breadcrumbContainer"></div>
+      </div>
+
+      <!-- Right controls: Sorting Dropdown, Search bar, View Toggles -->
+      <div class="toolbar-right-controls">
+        <!-- Sorting dropdown -->
+        <div class="sort-dropdown-box">
+          <select id="sortSelect" class="sort-select" title="Sort items (folders pinned to top)">
+            <option value="name_asc">Name (A → Z)</option>
+            <option value="name_desc">Name (Z → A)</option>
+            <option value="size_desc">Size (Largest first)</option>
+            <option value="size_asc">Size (Smallest first)</option>
+            <option value="date_desc">Modified (Newest)</option>
+            <option value="date_asc">Modified (Oldest)</option>
+          </select>
+        </div>
+
+        <!-- Real-time Search bar -->
+        <div class="search-filter-box">
+          <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchInput" class="search-input" placeholder="Filter files..." autocomplete="off" />
+          <button id="searchClearBtn" class="search-clear-btn" title="Clear filter">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- View toggles: Table vs Grid -->
+        <div class="view-toggles">
+          <button class="view-toggle-btn active" id="btnViewList" title="List View (Detailed Rows)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </button>
+          <button class="view-toggle-btn" id="btnViewGrid" title="Grid View (Large Icons)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    <!-- Empty Landing State -->
+    <section class="empty-state-card" id="dropzoneEmpty">
+      <div class="dropzone-icon-stack">
+        <div class="dropzone-icon-bg">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </div>
+      </div>
+      <h2 class="dropzone-title">Universal File Explorer & Archive Manager</h2>
+      <p class="dropzone-subtitle">
+        Browse local folders with <code style="font-family: var(--font-mono); background: var(--bg-hover); padding: 2px 6px; border-radius: 4px;">showDirectoryPicker()</code>, inspect zip archives, preview <strong>ANY</strong> file format with our Universal Viewer (Images, Audio/Video, PDFs, Code, UTF-8 Text & Hex View), and compress files. 100% offline & client-side.
+      </p>
+
+      <div class="dropzone-actions" onclick="event.stopPropagation();">
+        <button class="btn btn-primary" id="btnDropzoneOpenFolder">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Open Local Folder</span>
+        </button>
+        <button class="btn btn-secondary" id="btnDropzoneOpenZip">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          </svg>
+          <span>Open .ZIP Archive</span>
+        </button>
+        <button class="btn btn-secondary" id="btnDropzoneCreateZip">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Create New Zip</span>
+        </button>
+        <button class="btn btn-ghost" id="btnLoadSampleZip" title="Load sample archive to test Universal Viewer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Load Demo Archive</span>
+        </button>
+      </div>
+
+      <div class="features-pill-row">
+        <span class="feature-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          Universal File Viewer (Images, Audio, Video, PDF, Code, Hex)
+        </span>
+        <span class="feature-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          Directory Picker & Mobile Fallback
+        </span>
+        <span class="feature-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          Safe Memory Cleanup (URL.revokeObjectURL)
+        </span>
+      </div>
+    </section>
+
+    <!-- Explorer Layout -->
+    <section class="explorer-layout" id="explorerLayout">
+      <!-- Folder Tree Sidebar -->
+      <aside class="tree-sidebar" id="treeSidebar">
+        <div class="tree-sidebar-header">
+          <span>Folder Tree</span>
+          <button class="action-icon-btn" id="btnCollapseAllTree" title="Return to Root">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 14 10 14 10 20"></polyline>
+              <polyline points="20 10 14 10 14 4"></polyline>
+            </svg>
+          </button>
+        </div>
+        <div id="treeContainer"></div>
+      </aside>
+
+      <!-- Main File Explorer View -->
+      <div class="file-view-container">
+        <!-- Table View -->
+        <div class="file-table-wrapper" id="tableViewWrapper">
+          <table class="file-table" id="fileTable">
+            <thead>
+              <tr>
+                <th style="width: 38px; text-align: center;">
+                  <input type="checkbox" id="thSelectAllCheckbox" title="Select all items in view" />
+                </th>
+                <th class="sortable" data-sort="name">
+                  Name <span class="sort-indicator" id="sortNameIndicator"></span>
+                </th>
+                <th class="sortable" data-sort="size" style="width: 110px;">
+                  Size <span class="sort-indicator" id="sortSizeIndicator"></span>
+                </th>
+                <th class="sortable" data-sort="type" style="width: 125px;">
+                  Type <span class="sort-indicator" id="sortTypeIndicator"></span>
+                </th>
+                <th class="sortable" data-sort="date" style="width: 155px;">
+                  Modified <span class="sort-indicator" id="sortDateIndicator"></span>
+                </th>
+                <th style="width: 140px; text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="fileTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Grid View -->
+        <div class="grid-view-container" id="gridViewContainer"></div>
+
+        <!-- Empty search result notice -->
+        <div id="noFilesNotice" class="hidden" style="padding: 3rem; text-align: center; color: var(--text-muted);">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 0.5rem;">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <div style="font-weight: 600; font-size: 1rem;">No matching files or folders</div>
+          <div style="font-size: 0.85rem; margin-top: 0.2rem;">Try modifying your search or navigate to a different directory.</div>
+        </div>
+
+        <!-- Status Bar -->
+        <footer class="status-bar" id="statusBar">
+          <div class="status-left">
+            <span class="status-badge">
+              <span class="status-indicator-dot"></span>
+              <span id="statusCurrentName">Ready</span>
+            </span>
+            <span id="statusItemCount">0 items</span>
+            <span id="statusSelectionSummary">0 selected (0 B)</span>
+          </div>
+          <div class="status-right">
+            <span id="statusTotalSize">Total: 0 B</span>
+            <span id="statusEngineBadge" style="font-size: 0.75rem; color: var(--text-subtle);">100% Offline & Private</span>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- Floating Batch Action Bar -->
+    <div class="floating-batch-bar" id="floatingBatchBar">
+      <div class="batch-count-badge">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span id="batchCountLabel">0 selected</span>
+      </div>
+
+      <button class="btn btn-primary btn-sm" id="btnBatchZip" title="Compress selected items together into a new archive">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        </svg>
+        <span>Zip Selected</span>
+      </button>
+
+      <button class="btn btn-success btn-sm hidden" id="btnBatchExtract" title="Extract and download all selected files">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+        </svg>
+        <span>Extract Selected</span>
+      </button>
+
+      <button class="btn btn-danger btn-sm" id="btnBatchDelete" title="Remove selected items from view">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        <span>Delete Selected</span>
+      </button>
+
+      <button class="btn btn-secondary btn-sm" id="btnBatchDeselect" title="Deselect all items">
+        <span>Deselect All</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- Universal File Viewer Modal (Opens ANY file) -->
+  <div class="modal-backdrop" id="modalUniversalViewer">
+    <div class="modal-window large">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span id="viewerFileIcon"></span>
+          <span id="viewerFileName" class="text-truncate" style="max-width: 480px;">Preview</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+          <!-- Open With System / Download button -->
+          <button class="btn btn-primary btn-sm" id="btnViewerDownload" title="Open with system app or download">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span id="viewerDownloadLabel">Download / Open</span>
+          </button>
+          <button class="modal-close-btn" id="btnCloseViewerModal" title="Close viewer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <!-- Viewer Tab Bar & Tools -->
+        <div class="viewer-tab-bar">
+          <div class="viewer-tabs" id="viewerTabGroup">
+            <button class="viewer-tab-btn active" id="tabBtnPreview" data-tab="preview">Formatted Preview</button>
+            <button class="viewer-tab-btn" id="tabBtnText" data-tab="text">Text Preview</button>
+            <button class="viewer-tab-btn" id="tabBtnHex" data-tab="hex">Hex View</button>
+          </div>
+
+          <div class="viewer-toolbar-tools">
+            <!-- Image zoom tools -->
+            <div id="viewerImageTools" class="hidden" style="display: flex; gap: 0.25rem;">
+              <button class="btn btn-secondary btn-sm" id="btnZoomOut" title="Zoom Out">-</button>
+              <button class="btn btn-secondary btn-sm" id="btnZoomReset" title="Reset Zoom">100%</button>
+              <button class="btn btn-secondary btn-sm" id="btnZoomIn" title="Zoom In">+</button>
+            </div>
+            <!-- Code / text tools: copy, wrap -->
+            <div id="viewerTextTools" class="hidden" style="display: flex; gap: 0.25rem;">
+              <button class="btn btn-secondary btn-sm" id="btnToggleWordWrap" title="Toggle Word Wrap">Wrap</button>
+              <button class="btn btn-secondary btn-sm" id="btnCopyText" title="Copy text content to clipboard">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span>Copy All</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- File meta strip -->
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); flex-wrap: wrap; gap: 0.5rem;">
+          <span id="viewerFileMeta">Size: -- | Modified: --</span>
+          <span id="viewerFileMime">MIME: --</span>
+        </div>
+
+        <!-- Primary Preview Viewer Container -->
+        <div class="preview-viewer-box" id="universalViewerContainer"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCloseViewerBottom">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Item Information Modal -->
+  <div class="modal-backdrop" id="modalItemInfo">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Item Information</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseInfoModal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="info-grid" id="itemInfoGrid"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btnCloseInfoBtn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Modal -->
+  <div class="modal-backdrop" id="modalRename">
+    <div class="modal-window" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          <span>Rename Item</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseRenameModal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="inputRenameVal">New Name</label>
+          <input type="text" id="inputRenameVal" class="form-input" autocomplete="off" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelRename">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveRename">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Archive Modal with Advanced Compression Slider (STORE: 0, DEFLATE: 1-9) -->
+  <div class="modal-backdrop" id="modalCreateArchive">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          </svg>
+          <span>Create .ZIP Archive</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseCreateModal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="createArchiveName">Archive File Name</label>
+          <input type="text" id="createArchiveName" class="form-input" value="Archive.zip" placeholder="example.zip" />
+        </div>
+
+        <!-- Advanced Compression Slider (STORE: 0, DEFLATE: 1-9) -->
+        <div class="form-group">
+          <label class="form-label">Compression Level & Method</label>
+          <div class="compression-slider-box">
+            <div class="compression-slider-header">
+              <span id="compressionMethodLabel" style="font-weight: 600;">Standard DEFLATE (Level 6)</span>
+              <span class="compression-badge" id="compressionLevelBadge">Level 6</span>
+            </div>
+            <input type="range" id="compressionLevelRange" class="compression-range-input" min="0" max="9" step="1" value="6" />
+            <div class="compression-scale-ticks">
+              <span>0 (STORE - No compression)</span>
+              <span>1 (Fast)</span>
+              <span>6 (Standard)</span>
+              <span>9 (Maximum)</span>
+            </div>
+            <div id="compressionDescription" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+              Balanced compression ratio and packaging speed for general files.
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label class="form-label">Files to Compress (<span id="stagedCount">0</span>)</label>
+            <div style="display: flex; gap: 0.4rem;">
+              <input type="file" id="inputStageFiles" multiple class="hidden" />
+              <button class="btn btn-secondary btn-sm" id="btnStageFiles">+ Add Files</button>
+              <input type="file" id="inputStageFolder" webkitdirectory directory multiple class="hidden" />
+              <button class="btn btn-secondary btn-sm" id="btnStageFolder">+ Add Folder</button>
+            </div>
+          </div>
+
+          <div class="staged-file-list" id="stagedFileList">
+            <div id="stagedEmptyMsg" style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1.5rem;">
+              No files added yet. Click "+ Add Files" or stage from your explorer.
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+          <span>Total Size:</span>
+          <strong id="stagedTotalSize">0 B</strong>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelCreate">Cancel</button>
+        <button class="btn btn-primary" id="btnGenerateZip" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Generate & Download .ZIP</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Encrypted / Password-Protected Archive Alert Modal -->
+  <div class="modal-backdrop" id="modalEncryptedAlert">
+    <div class="modal-window" style="max-width: 480px;">
+      <div class="modal-header">
+        <div class="modal-title" style="color: var(--warning);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span>Encrypted Archive Detected</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseEncryptedAlert">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="alert-box alert-warning">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <div>
+            <strong>Password-Protected or Encrypted Content</strong>
+            <p style="margin-top: 0.35rem; color: var(--text-main);">
+              This .zip archive contains password-protected or encrypted entries. Client-side JSZip does not support decryption keys or encrypted payload decompression in the browser without third-party decryption binaries.
+            </p>
+          </div>
+        </div>
+        <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.45;">
+          • You can still browse the visible directory layout and filenames.<br>
+          • To unpack or inspect encrypted contents, decrypt or repack the archive as an unencrypted zip using your local operating system tool or WinRAR.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btnAckEncryptedAlert">Understood</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress Modal -->
+  <div class="modal-backdrop" id="modalProgress" style="z-index: 150;">
+    <div class="modal-window" style="max-width: 460px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span id="progressTitle">Processing...</span>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="progress-box">
+          <div class="progress-status-line" id="progressStatusLine">Preparing operations...</div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-text-row">
+            <span id="progressPercent">0%</span>
+            <span id="progressBytes">0 / 0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-Dots Action Dropdown Menu -->
+  <div class="dropdown-menu" id="rowDropdownMenu">
+    <div class="dropdown-item" id="menuItemPreview">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      <span>Universal Preview</span>
+    </div>
+    <div class="dropdown-item" id="menuItemExtract">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      <span id="menuExtractLabel">Download / Extract</span>
+    </div>
+    <div class="dropdown-item" id="menuItemInfo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+      <span>Information</span>
+    </div>
+    <div class="dropdown-divider"></div>
+    <div class="dropdown-item" id="menuItemRename">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+      <span>Rename</span>
+    </div>
+    <div class="dropdown-item danger" id="menuItemDelete">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      <span>Delete</span>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Vanilla JavaScript Application Logic -->
+  <script>
+    /**
+     * WebZip - Universal Storage & Archive Manager
+     * Final Polish Features:
+     * - Multi-Select & Floating Batch Action Bar ("Zip Selected", "Delete Selected", "Extract Selected", "Deselect All")
+     * - Sorting Dropdown (Name A-Z, Z-A, Size, Date) with Folders pinned to top + List/Grid layout toggle
+     * - Advanced Compression Options: STORE: 0, DEFLATE: 1-9 with interactive slider
+     * - Error catching & Informative Alert for encrypted/password-protected zips
+     * - Preference persistence (Theme, View mode, Sort preset) via localStorage
+     * - Performance: Hex Viewer limited to initial 64KB with "Load More (+64 KB)"
+     */
+    (function () {
+      'use strict';
+
+      // Object URL tracker for strict memory safety
+      const activeObjectUrls = new Set();
+
+      function registerTrackedBlobUrl(url) {
+        if (url) activeObjectUrls.add(url);
+        return url;
+      }
+
+      function revokeTrackedBlobUrl(url) {
+        if (url && activeObjectUrls.has(url)) {
+          URL.revokeObjectURL(url);
+          activeObjectUrls.delete(url);
+        }
+      }
+
+      function cleanupAllObjectUrls() {
+        activeObjectUrls.forEach(url => {
+          try { URL.revokeObjectURL(url); } catch (e) {}
+        });
+        activeObjectUrls.clear();
+      }
+
+      window.addEventListener('beforeunload', cleanupAllObjectUrls);
+
+      // Application State with LocalStorage Persistence
+      const state = {
+        theme: localStorage.getItem('webzip_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+        viewMode: localStorage.getItem('webzip_view_mode') || 'list',
+        sortPreset: localStorage.getItem('webzip_sort_preset') || 'name_asc', // 'name_asc' | 'name_desc' | 'size_desc' | 'size_asc' | 'date_desc' | 'date_asc'
+        
+        sourceType: 'none', // 'local_folder' | 'zip_archive' | 'none'
+
+        // Local Folder State
+        rootDirectoryHandle: null,
+        directoryHandleStack: [], // Array of { name, handle, path }
+        folderEntries: [], // Current directory entries
+        isFallbackFolder: false,
+        fallbackFiles: [],
+
+        // Zip Archive State
+        currentZip: null,
+        zipFileObj: null,
+        zipArchiveName: '',
+        zipEntries: [],
+        zipCurrentPath: '',
+        zipParentFolderRef: null,
+
+        // Explorer State
+        searchQuery: '',
+        selectedPaths: new Set(),
+
+        // Universal Viewer State
+        activeViewerEntry: null,
+        activeViewerBlob: null,
+        activeViewerUrl: null,
+        activeViewerTab: 'preview', // 'preview' | 'text' | 'hex'
+        viewerZoomLevel: 1,
+        viewerWordWrap: false,
+        hexBytesLimit: 65536, // 64 KB initial rendering limit for performance
+
+        // Action Menu Target
+        activeMenuEntry: null,
+        renameTargetEntry: null,
+
+        // Staged Files for Archive Creation
+        stagedFiles: [],
+        createCompressionLevel: 6, // 0 = STORE, 1-9 = DEFLATE
+      };
+
+      // DOM Elements Cache
+      const els = {
+        btnThemeToggle: document.getElementById('btnThemeToggle'),
+        themeIconSun: document.getElementById('themeIconSun'),
+        themeIconMoon: document.getElementById('themeIconMoon'),
+        btnBrandHome: document.getElementById('btnBrandHome'),
+        
+        btnOpenFolder: document.getElementById('btnOpenFolder'),
+        fallbackFolderInput: document.getElementById('fallbackFolderInput'),
+        btnOpenArchive: document.getElementById('btnOpenArchive'),
+        fileArchiveInput: document.getElementById('fileArchiveInput'),
+        btnNewArchive: document.getElementById('btnNewArchive'),
+        btnExtractAll: document.getElementById('btnExtractAll'),
+        btnCloseView: document.getElementById('btnCloseView'),
+        
+        toolbarSection: document.getElementById('toolbarSection'),
+        btnNavUp: document.getElementById('btnNavUp'),
+        sourceIndicatorTag: document.getElementById('sourceIndicatorTag'),
+        breadcrumbContainer: document.getElementById('breadcrumbContainer'),
+        sortSelect: document.getElementById('sortSelect'),
+        searchInput: document.getElementById('searchInput'),
+        searchClearBtn: document.getElementById('searchClearBtn'),
+        btnViewList: document.getElementById('btnViewList'),
+        btnViewGrid: document.getElementById('btnViewGrid'),
+        
+        dropzoneEmpty: document.getElementById('dropzoneEmpty'),
+        btnDropzoneOpenFolder: document.getElementById('btnDropzoneOpenFolder'),
+        btnDropzoneOpenZip: document.getElementById('btnDropzoneOpenZip'),
+        btnDropzoneCreateZip: document.getElementById('btnDropzoneCreateZip'),
+        btnLoadSampleZip: document.getElementById('btnLoadSampleZip'),
+        
+        explorerLayout: document.getElementById('explorerLayout'),
+        treeSidebar: document.getElementById('treeSidebar'),
+        treeContainer: document.getElementById('treeContainer'),
+        btnCollapseAllTree: document.getElementById('btnCollapseAllTree'),
+        
+        // Floating Batch Action Bar
+        floatingBatchBar: document.getElementById('floatingBatchBar'),
+        batchCountLabel: document.getElementById('batchCountLabel'),
+        btnBatchZip: document.getElementById('btnBatchZip'),
+        btnBatchExtract: document.getElementById('btnBatchExtract'),
+        btnBatchDelete: document.getElementById('btnBatchDelete'),
+        btnBatchDeselect: document.getElementById('btnBatchDeselect'),
+        
+        tableViewWrapper: document.getElementById('tableViewWrapper'),
+        fileTable: document.getElementById('fileTable'),
+        fileTableBody: document.getElementById('fileTableBody'),
+        thSelectAllCheckbox: document.getElementById('thSelectAllCheckbox'),
+        gridViewContainer: document.getElementById('gridViewContainer'),
+        noFilesNotice: document.getElementById('noFilesNotice'),
+        
+        statusCurrentName: document.getElementById('statusCurrentName'),
+        statusItemCount: document.getElementById('statusItemCount'),
+        statusSelectionSummary: document.getElementById('statusSelectionSummary'),
+        statusTotalSize: document.getElementById('statusTotalSize'),
+        statusEngineBadge: document.getElementById('statusEngineBadge'),
+        
+        // Universal Viewer Elements
+        modalUniversalViewer: document.getElementById('modalUniversalViewer'),
+        btnCloseViewerModal: document.getElementById('btnCloseViewerModal'),
+        btnCloseViewerBottom: document.getElementById('btnCloseViewerBottom'),
+        btnViewerDownload: document.getElementById('btnViewerDownload'),
+        viewerDownloadLabel: document.getElementById('viewerDownloadLabel'),
+        viewerFileName: document.getElementById('viewerFileName'),
+        viewerFileIcon: document.getElementById('viewerFileIcon'),
+        viewerFileMeta: document.getElementById('viewerFileMeta'),
+        viewerFileMime: document.getElementById('viewerFileMime'),
+        viewerTabGroup: document.getElementById('viewerTabGroup'),
+        tabBtnPreview: document.getElementById('tabBtnPreview'),
+        tabBtnText: document.getElementById('tabBtnText'),
+        tabBtnHex: document.getElementById('tabBtnHex'),
+        viewerImageTools: document.getElementById('viewerImageTools'),
+        btnZoomIn: document.getElementById('btnZoomIn'),
+        btnZoomOut: document.getElementById('btnZoomOut'),
+        btnZoomReset: document.getElementById('btnZoomReset'),
+        viewerTextTools: document.getElementById('viewerTextTools'),
+        btnToggleWordWrap: document.getElementById('btnToggleWordWrap'),
+        btnCopyText: document.getElementById('btnCopyText'),
+        universalViewerContainer: document.getElementById('universalViewerContainer'),
+        
+        // Context Menu Elements
+        rowDropdownMenu: document.getElementById('rowDropdownMenu'),
+        menuItemPreview: document.getElementById('menuItemPreview'),
+        menuItemExtract: document.getElementById('menuItemExtract'),
+        menuExtractLabel: document.getElementById('menuExtractLabel'),
+        menuItemInfo: document.getElementById('menuItemInfo'),
+        menuItemRename: document.getElementById('menuItemRename'),
+        menuItemDelete: document.getElementById('menuItemDelete'),
+        
+        // Item Info Modal
+        modalItemInfo: document.getElementById('modalItemInfo'),
+        btnCloseInfoModal: document.getElementById('btnCloseInfoModal'),
+        btnCloseInfoBtn: document.getElementById('btnCloseInfoBtn'),
+        itemInfoGrid: document.getElementById('itemInfoGrid'),
+        
+        // Rename Modal
+        modalRename: document.getElementById('modalRename'),
+        btnCloseRenameModal: document.getElementById('btnCloseRenameModal'),
+        btnCancelRename: document.getElementById('btnCancelRename'),
+        inputRenameVal: document.getElementById('inputRenameVal'),
+        btnSaveRename: document.getElementById('btnSaveRename'),
+        
+        // Create Modal & Compression Slider
+        modalCreateArchive: document.getElementById('modalCreateArchive'),
+        btnCloseCreateModal: document.getElementById('btnCloseCreateModal'),
+        btnCancelCreate: document.getElementById('btnCancelCreate'),
+        createArchiveName: document.getElementById('createArchiveName'),
+        compressionLevelRange: document.getElementById('compressionLevelRange'),
+        compressionLevelBadge: document.getElementById('compressionLevelBadge'),
+        compressionMethodLabel: document.getElementById('compressionMethodLabel'),
+        compressionDescription: document.getElementById('compressionDescription'),
+        btnStageFiles: document.getElementById('btnStageFiles'),
+        inputStageFiles: document.getElementById('inputStageFiles'),
+        btnStageFolder: document.getElementById('btnStageFolder'),
+        inputStageFolder: document.getElementById('inputStageFolder'),
+        stagedFileList: document.getElementById('stagedFileList'),
+        stagedEmptyMsg: document.getElementById('stagedEmptyMsg'),
+        stagedCount: document.getElementById('stagedCount'),
+        stagedTotalSize: document.getElementById('stagedTotalSize'),
+        btnGenerateZip: document.getElementById('btnGenerateZip'),
+        
+        // Encrypted Archive Alert Modal
+        modalEncryptedAlert: document.getElementById('modalEncryptedAlert'),
+        btnCloseEncryptedAlert: document.getElementById('btnCloseEncryptedAlert'),
+        btnAckEncryptedAlert: document.getElementById('btnAckEncryptedAlert'),
+
+        // Progress Modal
+        modalProgress: document.getElementById('modalProgress'),
+        progressTitle: document.getElementById('progressTitle'),
+        progressStatusLine: document.getElementById('progressStatusLine'),
+        progressFill: document.getElementById('progressFill'),
+        progressPercent: document.getElementById('progressPercent'),
+        progressBytes: document.getElementById('progressBytes'),
+        
+        toastContainer: document.getElementById('toastContainer'),
+      };
+
+      // SVG Icon Templates
+      const Icons = {
+        folder: '<svg width="20" height="20" viewBox="0 0 24 24" fill="#F59E0B" stroke="#D97706" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
+        folderOpen: '<svg width="20" height="20" viewBox="0 0 24 24" fill="#FBBF24" stroke="#D97706" stroke-width="1.5"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path><path d="M2 10h20"></path></svg>',
+        image: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>',
+        code: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>',
+        audio: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>',
+        video: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>',
+        pdf: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="15" x2="15" y2="15"></line></svg>',
+        archive: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><line x1="12" y1="22" x2="12" y2="12"></line></svg>',
+        document: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>',
+        binary: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"></rect><line x1="6" y1="12" x2="18" y2="12"></line><line x1="12" y1="6" x2="12" y2="18"></line></svg>',
+        download: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
+        preview: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+        dots: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>',
+      };
+
+      // Toast Notifications
+      function showToast(title, message, type = 'info', duration = 3500) {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        
+        let iconSvg = '';
+        if (type === 'success') {
+          iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        } else if (type === 'error') {
+          iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+        } else if (type === 'warning') {
+          iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>';
+        } else {
+          iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line></svg>';
+        }
+
+        toast.innerHTML = `
+          <div class="toast-icon">${iconSvg}</div>
+          <div class="toast-content">
+            <div class="toast-title">${escapeHtml(title)}</div>
+            ${message ? `<div class="toast-message">${escapeHtml(message)}</div>` : ''}
+          </div>
+          <button class="toast-close" title="Close">&times;</button>
+        `;
+
+        toast.querySelector('.toast-close').addEventListener('click', () => removeToast(toast));
+        els.toastContainer.appendChild(toast);
+
+        if (duration > 0) {
+          setTimeout(() => removeToast(toast), duration);
+        }
+      }
+
+      function removeToast(toast) {
+        if (!toast || !toast.parentNode) return;
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        toast.style.transition = 'all 0.2s ease';
+        setTimeout(() => {
+          if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 200);
+      }
+
+      // Memory-Safe Download Helper with Strict Revocation
+      function safeDownloadBlob(blob, filename) {
+        try {
+          const objectUrl = registerTrackedBlobUrl(URL.createObjectURL(blob));
+          const anchor = document.createElement('a');
+          anchor.href = objectUrl;
+          anchor.download = filename;
+          anchor.style.display = 'none';
+          document.body.appendChild(anchor);
+          anchor.click();
+
+          setTimeout(() => {
+            if (anchor.parentNode) document.body.removeChild(anchor);
+            revokeTrackedBlobUrl(objectUrl);
+          }, 1500);
+        } catch (err) {
+          console.error('Download error:', err);
+          showToast('Download Error', 'Could not save file: ' + err.message, 'error');
+        }
+      }
+
+      // Formatting Utilities
+      function formatBytes(bytes, decimals = 1) {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+      }
+
+      function formatDate(date) {
+        if (!date) return '--';
+        try {
+          const d = new Date(date);
+          if (isNaN(d.getTime())) return '--';
+          return d.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        } catch (e) {
+          return '--';
+        }
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      // Format & MIME Detection
+      function getFormatDetails(filename, isDir = false) {
+        if (isDir) {
+          return { category: 'folder', typeName: 'Folder', mime: 'inode/directory', icon: Icons.folder, isArchive: false };
+        }
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+
+        if (['jpg', 'jpeg', 'png', 'svg', 'gif', 'webp', 'ico', 'bmp', 'avif'].includes(ext)) {
+          const mime = ext === 'svg' ? 'image/svg+xml' : (ext === 'ico' ? 'image/x-icon' : `image/${ext === 'jpg' ? 'jpeg' : ext}`);
+          return { category: 'image', typeName: 'Image (' + ext.toUpperCase() + ')', mime, icon: Icons.image, isArchive: false };
+        }
+        if (['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'weba'].includes(ext)) {
+          return { category: 'audio', typeName: 'Audio (' + ext.toUpperCase() + ')', mime: `audio/${ext}`, icon: Icons.audio, isArchive: false };
+        }
+        if (['mp4', 'webm', 'mkv', 'mov', 'avi'].includes(ext)) {
+          return { category: 'video', typeName: 'Video (' + ext.toUpperCase() + ')', mime: `video/${ext}`, icon: Icons.video, isArchive: false };
+        }
+        if (ext === 'pdf') {
+          return { category: 'pdf', typeName: 'PDF Document', mime: 'application/pdf', icon: Icons.pdf, isArchive: false };
+        }
+        if (['txt', 'md', 'json', 'html', 'htm', 'css', 'js', 'ts', 'jsx', 'tsx', 'cpp', 'c', 'h', 'hpp', 'py', 'java', 'xml', 'log', 'csv', 'tsv', 'yaml', 'yml', 'sh', 'bash', 'sql', 'ini', 'env', 'cfg', 'conf', 'rs', 'go', 'php', 'rb'].includes(ext)) {
+          let mime = 'text/plain';
+          if (ext === 'json') mime = 'application/json';
+          else if (ext === 'html' || ext === 'htm') mime = 'text/html';
+          else if (ext === 'css') mime = 'text/css';
+          else if (ext === 'js' || ext === 'ts') mime = 'application/javascript';
+          else if (ext === 'xml') mime = 'application/xml';
+          else if (ext === 'csv') mime = 'text/csv';
+          return { category: 'code', typeName: 'Text/Code (' + ext.toUpperCase() + ')', mime, icon: Icons.code, isArchive: false };
+        }
+        if (['zip', 'jar', 'apk', 'cbz', 'epub', 'docx', 'xlsx', 'pptx'].includes(ext)) {
+          return { category: 'archive', typeName: 'ZIP Archive (' + ext.toUpperCase() + ')', mime: 'application/zip', icon: Icons.archive, isArchive: true };
+        }
+        let fallbackMime = 'application/octet-stream';
+        if (['exe', 'bin', 'dll', 'so', 'dylib', 'dat', 'iso', 'img', 'wasm'].includes(ext)) {
+          return { category: 'binary', typeName: ext ? ext.toUpperCase() + ' Binary' : 'Binary File', mime: fallbackMime, icon: Icons.binary, isArchive: false };
+        }
+
+        return { category: 'unknown', typeName: ext ? ext.toUpperCase() + ' File' : 'File', mime: fallbackMime, icon: Icons.document, isArchive: false };
+      }
+
+      // Theme Management (with Persistence)
+      function applyTheme(theme) {
+        state.theme = theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('webzip_theme', theme);
+        if (theme === 'dark') {
+          els.themeIconSun.classList.remove('hidden');
+          els.themeIconMoon.classList.add('hidden');
+        } else {
+          els.themeIconSun.classList.add('hidden');
+          els.themeIconMoon.classList.remove('hidden');
+        }
+      }
+
+      function toggleTheme() {
+        applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+      }
+
+      // Progress Modal Controls
+      function showProgress(title, status = 'Starting...', percent = 0) {
+        els.progressTitle.textContent = title;
+        els.progressStatusLine.textContent = status;
+        els.progressFill.style.width = Math.min(100, Math.max(0, percent)) + '%';
+        els.progressPercent.textContent = Math.round(percent) + '%';
+        els.progressBytes.textContent = '';
+        els.modalProgress.classList.add('open');
+      }
+
+      function updateProgress(status, percent, currentBytes = null, totalBytes = null) {
+        if (status) els.progressStatusLine.textContent = status;
+        if (percent !== undefined && percent !== null) {
+          const clamped = Math.min(100, Math.max(0, percent));
+          els.progressFill.style.width = clamped + '%';
+          els.progressPercent.textContent = Math.round(clamped) + '%';
+        }
+        if (currentBytes !== null && totalBytes !== null) {
+          els.progressBytes.textContent = formatBytes(currentBytes) + ' / ' + formatBytes(totalBytes);
+        }
+      }
+
+      function hideProgress() {
+        els.modalProgress.classList.remove('open');
+      }
+
+      // ==========================================
+      // 1. LOCAL STORAGE & FOLDER EXPLORER
+      // ==========================================
+
+      async function handleOpenFolderClick() {
+        if (typeof window.showDirectoryPicker === 'function') {
+          try {
+            const dirHandle = await window.showDirectoryPicker();
+            await loadDirectoryFromHandle(dirHandle);
+          } catch (err) {
+            if (err.name !== 'AbortError') {
+              console.warn('showDirectoryPicker failed, falling back:', err);
+              showToast('Directory Access', 'Opening file selector fallback...', 'info');
+              els.fallbackFolderInput.click();
+            }
+          }
+        } else {
+          showToast('Folder Selection', 'Using mobile directory input for browser compatibility.', 'info');
+          els.fallbackFolderInput.click();
+        }
+      }
+
+      async function loadDirectoryFromHandle(dirHandle) {
+        showProgress('Reading Folder', `Opening "${dirHandle.name}"...`, 20);
+
+        try {
+          state.sourceType = 'local_folder';
+          state.isFallbackFolder = false;
+          state.rootDirectoryHandle = dirHandle;
+          state.directoryHandleStack = [{ name: dirHandle.name, handle: dirHandle }];
+          state.selectedPaths.clear();
+
+          await refreshCurrentDirectoryHandle();
+
+          hideProgress();
+          showToast('Folder Opened', `Browsing "${dirHandle.name}"`, 'success');
+        } catch (err) {
+          hideProgress();
+          console.error('Failed reading directory handle:', err);
+          showToast('Folder Access Error', err.message || 'Could not read directory.', 'error');
+        }
+      }
+
+      async function refreshCurrentDirectoryHandle() {
+        const currentFrame = state.directoryHandleStack[state.directoryHandleStack.length - 1];
+        if (!currentFrame || !currentFrame.handle) return;
+
+        const dirHandle = currentFrame.handle;
+        const entries = [];
+
+        for await (const [name, handle] of dirHandle.entries()) {
+          const isDir = handle.kind === 'directory';
+          let size = 0;
+          let date = null;
+          let fileObj = null;
+
+          if (!isDir) {
+            try {
+              fileObj = await handle.getFile();
+              size = fileObj.size;
+              date = fileObj.lastModified;
+            } catch (e) {
+              console.warn('Error reading handle file:', e);
+            }
+          }
+
+          entries.push({
+            name: name,
+            path: name,
+            isDir: isDir,
+            handle: handle,
+            file: fileObj,
+            size: size,
+            date: date,
+          });
+        }
+
+        state.folderEntries = entries;
+        renderActiveView();
+      }
+
+      function handleFallbackFolderSelected(files) {
+        if (!files || files.length === 0) return;
+
+        showProgress('Reading Folder', `Indexing ${files.length} items...`, 30);
+        state.sourceType = 'local_folder';
+        state.isFallbackFolder = true;
+        state.fallbackFiles = Array.from(files);
+        state.selectedPaths.clear();
+
+        let rootName = 'Selected Folder';
+        const firstRel = files[0].webkitRelativePath;
+        if (firstRel && firstRel.includes('/')) {
+          rootName = firstRel.split('/')[0];
+        }
+
+        state.directoryHandleStack = [{ name: rootName, path: '' }];
+        refreshFallbackFolderEntries('');
+
+        hideProgress();
+        showToast('Folder Loaded', `Browsing ${files.length} items from "${rootName}"`, 'success');
+      }
+
+      function refreshFallbackFolderEntries(currentSubPath) {
+        const entries = [];
+        const dirSet = new Set();
+        const prefix = currentSubPath ? (currentSubPath.endsWith('/') ? currentSubPath : currentSubPath + '/') : '';
+
+        state.fallbackFiles.forEach(file => {
+          const rel = file.webkitRelativePath || file.name;
+          const relNoRoot = rel.includes('/') ? rel.substring(rel.indexOf('/') + 1) : rel;
+
+          if (currentSubPath === '') {
+            if (relNoRoot.includes('/')) {
+              const topDir = relNoRoot.split('/')[0];
+              if (!dirSet.has(topDir)) {
+                dirSet.add(topDir);
+                entries.push({
+                  name: topDir,
+                  path: topDir,
+                  isDir: true,
+                  size: 0,
+                  date: null,
+                });
+              }
+            } else {
+              entries.push({
+                name: relNoRoot,
+                path: relNoRoot,
+                isDir: false,
+                file: file,
+                size: file.size,
+                date: file.lastModified,
+              });
+            }
+          } else {
+            if (relNoRoot.startsWith(prefix)) {
+              const remainder = relNoRoot.substring(prefix.length);
+              if (remainder.includes('/')) {
+                const subDir = remainder.split('/')[0];
+                if (!dirSet.has(subDir)) {
+                  dirSet.add(subDir);
+                  entries.push({
+                    name: subDir,
+                    path: currentSubPath ? `${currentSubPath}/${subDir}` : subDir,
+                    isDir: true,
+                    size: 0,
+                    date: null,
+                  });
+                }
+              } else if (remainder.length > 0) {
+                entries.push({
+                  name: remainder,
+                  path: relNoRoot,
+                  isDir: false,
+                  file: file,
+                  size: file.size,
+                  date: file.lastModified,
+                });
+              }
+            }
+          }
+        });
+
+        state.folderEntries = entries;
+        renderActiveView();
+      }
+
+      async function navigateLocalFolderSub(folderItem) {
+        state.searchQuery = '';
+        els.searchInput.value = '';
+        els.searchClearBtn.classList.remove('visible');
+
+        if (!state.isFallbackFolder) {
+          try {
+            state.directoryHandleStack.push({
+              name: folderItem.name,
+              handle: folderItem.handle,
+            });
+            await refreshCurrentDirectoryHandle();
+          } catch (err) {
+            showToast('Navigation Error', err.message, 'error');
+          }
+        } else {
+          const currentPath = state.directoryHandleStack[state.directoryHandleStack.length - 1].path || '';
+          const newPath = currentPath ? `${currentPath}/${folderItem.name}` : folderItem.name;
+          state.directoryHandleStack.push({
+            name: folderItem.name,
+            path: newPath,
+          });
+          refreshFallbackFolderEntries(newPath);
+        }
+      }
+
+      async function navigateLocalFolderToIndex(index) {
+        state.searchQuery = '';
+        els.searchInput.value = '';
+        els.searchClearBtn.classList.remove('visible');
+
+        state.directoryHandleStack = state.directoryHandleStack.slice(0, index + 1);
+
+        if (!state.isFallbackFolder) {
+          await refreshCurrentDirectoryHandle();
+        } else {
+          const currentFrame = state.directoryHandleStack[state.directoryHandleStack.length - 1];
+          refreshFallbackFolderEntries(currentFrame.path || '');
+        }
+      }
+
+      function navigateUpOneLevel() {
+        if (state.sourceType === 'zip_archive') {
+          if (!state.zipCurrentPath) {
+            if (state.zipParentFolderRef) {
+              state.sourceType = 'local_folder';
+              renderActiveView();
+            }
+            return;
+          }
+          const parts = state.zipCurrentPath.split('/');
+          parts.pop();
+          navigateZipFolder(parts.join('/'));
+        } else if (state.sourceType === 'local_folder') {
+          if (state.directoryHandleStack.length > 1) {
+            navigateLocalFolderToIndex(state.directoryHandleStack.length - 2);
+          }
+        }
+      }
+
+      // ==========================================
+      // 2. ARCHIVE INSPECT & ENCRYPTION HANDLING
+      // ==========================================
+
+      async function loadArchiveFromFile(file, parentFolderContext = null) {
+        if (!file) return;
+        if (typeof JSZip === 'undefined') {
+          showToast('JSZip Unavailable', 'JSZip failed to load from CDN. Please check connectivity.', 'error');
+          return;
+        }
+
+        showProgress('Inspecting ZIP', `Parsing "${file.name}"...`, 15);
+
+        try {
+          const zip = new JSZip();
+          const loadedZip = await zip.loadAsync(file, { createFolders: true, checkCRC32: false });
+
+          updateProgress('Indexing archive contents...', 75);
+
+          state.sourceType = 'zip_archive';
+          state.currentZip = loadedZip;
+          state.zipFileObj = file;
+          state.zipArchiveName = file.name;
+          state.zipCurrentPath = '';
+          state.zipParentFolderRef = parentFolderContext;
+          state.selectedPaths.clear();
+          state.zipEntries = [];
+
+          let fileCount = 0;
+          let folderCount = 0;
+          let hasEncryptedFlag = false;
+
+          loadedZip.forEach((relativePath, zipEntry) => {
+            const isDir = zipEntry.dir || relativePath.endsWith('/');
+            const cleanPath = relativePath.endsWith('/') ? relativePath.slice(0, -1) : relativePath;
+            if (!cleanPath) return;
+
+            // Check for encrypted flag bit (Bit 0 of general purpose bit flag)
+            if (zipEntry._data && (zipEntry._data.isEncrypted || (zipEntry._data.compressionMethod && zipEntry._data.compressionMethod.encrypted))) {
+              hasEncryptedFlag = true;
+            }
+
+            const pathParts = cleanPath.split('/');
+            const name = pathParts[pathParts.length - 1];
+            const parentPath = pathParts.slice(0, -1).join('/');
+
+            const uncompressedSize = zipEntry._data ? (zipEntry._data.uncompressedSize || 0) : 0;
+            const compressedSize = zipEntry._data ? (zipEntry._data.compressedSize || 0) : 0;
+            const crc32 = zipEntry._data ? (zipEntry._data.crc32 || 0) : 0;
+
+            if (isDir) folderCount++;
+            else fileCount++;
+
+            state.zipEntries.push({
+              path: cleanPath,
+              fullPath: relativePath,
+              name: name,
+              parentPath: parentPath,
+              isDir: isDir,
+              size: uncompressedSize,
+              compressedSize: compressedSize,
+              crc32: crc32,
+              date: zipEntry.date || null,
+              entryRef: zipEntry,
+            });
+          });
+
+          ensureVirtualDirectoryNodes();
+
+          updateProgress('Complete', 100);
+          setTimeout(() => {
+            hideProgress();
+            renderActiveView();
+
+            if (hasEncryptedFlag) {
+              showEncryptedAlert();
+            } else {
+              showToast('Archive Mounted', `Inspecting "${file.name}" (${fileCount} files, ${folderCount} folders)`, 'success');
+            }
+          }, 200);
+
+        } catch (err) {
+          hideProgress();
+          console.error('Failed to unpack zip:', err);
+          const msg = (err.message || '').toLowerCase();
+          if (msg.includes('encrypted') || msg.includes('password')) {
+            showEncryptedAlert();
+          } else {
+            showToast('Corrupted or Unsupported ZIP', err.message || 'Invalid archive format.', 'error', 6000);
+          }
+        }
+      }
+
+      function showEncryptedAlert() {
+        els.modalEncryptedAlert.classList.add('open');
+      }
+
+      function ensureVirtualDirectoryNodes() {
+        const dirSet = new Set(state.zipEntries.filter(e => e.isDir).map(e => e.path));
+        const virtualDirs = [];
+
+        state.zipEntries.forEach(entry => {
+          if (entry.parentPath) {
+            let accum = '';
+            entry.parentPath.split('/').forEach(part => {
+              accum = accum ? `${accum}/${part}` : part;
+              if (!dirSet.has(accum)) {
+                dirSet.add(accum);
+                const parentOfAccum = accum.includes('/') ? accum.substring(0, accum.lastIndexOf('/')) : '';
+                virtualDirs.push({
+                  path: accum,
+                  fullPath: accum + '/',
+                  name: part,
+                  parentPath: parentOfAccum,
+                  isDir: true,
+                  size: 0,
+                  compressedSize: 0,
+                  date: null,
+                  entryRef: null,
+                });
+              }
+            });
+          }
+        });
+
+        if (virtualDirs.length > 0) {
+          state.zipEntries.push(...virtualDirs);
+        }
+      }
+
+      function navigateZipFolder(targetPath) {
+        state.zipCurrentPath = targetPath;
+        state.searchQuery = '';
+        els.searchInput.value = '';
+        els.searchClearBtn.classList.remove('visible');
+        renderActiveView();
+      }
+
+      async function extractSingleFile(entry) {
+        if (!state.currentZip || !entry || entry.isDir) return;
+        const zipFile = state.currentZip.file(entry.fullPath);
+        if (!zipFile) {
+          showToast('Extraction Failed', `Entry "${entry.name}" not found in archive.`, 'error');
+          return;
+        }
+
+        showProgress('Extracting', `Unpacking "${entry.name}"...`, 30);
+        try {
+          const blob = await zipFile.async('blob', metadata => {
+            updateProgress(`Unpacking "${entry.name}"`, metadata.percent);
+          });
+          hideProgress();
+          safeDownloadBlob(blob, entry.name);
+          showToast('Extracted', `"${entry.name}" (${formatBytes(blob.size)}) extracted successfully.`, 'success');
+        } catch (err) {
+          hideProgress();
+          console.error('File extraction error:', err);
+          if ((err.message || '').toLowerCase().includes('encrypted')) {
+            showEncryptedAlert();
+          } else {
+            showToast('Extraction Error', err.message || 'Failed to unpack file.', 'error');
+          }
+        }
+      }
+
+      async function extractAllFiles() {
+        if (!state.currentZip) return;
+        const files = state.zipEntries.filter(e => !e.isDir);
+        if (files.length === 0) {
+          showToast('No Files', 'Archive contains no files to extract.', 'info');
+          return;
+        }
+
+        const confirmed = confirm(`Unpack and download all ${files.length} files from "${state.zipArchiveName}"?`);
+        if (!confirmed) return;
+
+        showProgress('Extract All', `Extracting 0 of ${files.length} files...`, 0);
+
+        let successCount = 0;
+        for (let i = 0; i < files.length; i++) {
+          const entry = files[i];
+          const percent = ((i + 1) / files.length) * 100;
+          updateProgress(`Extracting (${i + 1}/${files.length}): ${entry.name}`, percent);
+
+          try {
+            const zipFile = state.currentZip.file(entry.fullPath);
+            if (zipFile) {
+              const blob = await zipFile.async('blob');
+              safeDownloadBlob(blob, entry.name);
+              successCount++;
+              await new Promise(r => setTimeout(r, 220));
+            }
+          } catch (e) {
+            console.warn(`Failed extracting ${entry.name}:`, e);
+          }
+        }
+
+        hideProgress();
+        showToast('Extraction Finished', `Successfully extracted ${successCount} of ${files.length} files.`, 'success');
+      }
+
+      async function extractSelectedFiles() {
+        if (!state.currentZip || state.selectedPaths.size === 0) return;
+
+        const files = state.zipEntries.filter(e => state.selectedPaths.has(e.path) && !e.isDir);
+        if (files.length === 0) {
+          showToast('Select Files', 'Please select at least one file to extract.', 'warning');
+          return;
+        }
+
+        showProgress('Extracting Selected', `Extracting 0 of ${files.length}...`, 0);
+
+        let count = 0;
+        for (let i = 0; i < files.length; i++) {
+          const entry = files[i];
+          const percent = ((i + 1) / files.length) * 100;
+          updateProgress(`Extracting (${i + 1}/${files.length}): ${entry.name}`, percent);
+
+          try {
+            const zipFile = state.currentZip.file(entry.fullPath);
+            if (zipFile) {
+              const blob = await zipFile.async('blob');
+              safeDownloadBlob(blob, entry.name);
+              count++;
+              await new Promise(r => setTimeout(r, 220));
+            }
+          } catch (e) {
+            console.warn('Selected extraction error:', e);
+          }
+        }
+
+        hideProgress();
+        showToast('Selected Extracted', `Extracted ${count} files successfully.`, 'success');
+      }
+
+      // ==========================================
+      // 3. UI RENDERING & SORTING (FOLDERS PINNED)
+      // ==========================================
+
+      function renderActiveView() {
+        if (state.sourceType === 'none') {
+          els.dropzoneEmpty.classList.remove('hidden');
+          els.explorerLayout.classList.remove('active');
+          els.toolbarSection.classList.add('hidden');
+          els.btnCloseView.classList.add('hidden');
+          els.btnExtractAll.classList.add('hidden');
+          updateBatchBar();
+          return;
+        }
+
+        els.dropzoneEmpty.classList.add('hidden');
+        els.explorerLayout.classList.add('active');
+        els.toolbarSection.classList.remove('hidden');
+        els.btnCloseView.classList.remove('hidden');
+
+        const canGoUp = (state.sourceType === 'zip_archive' && (state.zipCurrentPath !== '' || state.zipParentFolderRef !== null)) ||
+                        (state.sourceType === 'local_folder' && state.directoryHandleStack.length > 1);
+        els.btnNavUp.disabled = !canGoUp;
+
+        if (state.sourceType === 'zip_archive') {
+          els.sourceIndicatorTag.textContent = 'ZIP Archive';
+          els.sourceIndicatorTag.className = 'source-tag source-zip';
+          els.btnExtractAll.classList.remove('hidden');
+          els.statusCurrentName.textContent = state.zipArchiveName;
+          els.statusEngineBadge.textContent = 'ZIP Mode (JSZip)';
+          els.btnBatchExtract.classList.remove('hidden');
+        } else {
+          els.sourceIndicatorTag.textContent = 'Local Folder';
+          els.sourceIndicatorTag.className = 'source-tag source-folder';
+          els.btnExtractAll.classList.add('hidden');
+          const rootName = state.directoryHandleStack[0]?.name || 'Local Folder';
+          els.statusCurrentName.textContent = rootName;
+          els.statusEngineBadge.textContent = state.isFallbackFolder ? 'Directory (Mobile Fallback)' : 'Storage (File System Access)';
+          els.btnBatchExtract.classList.add('hidden');
+        }
+
+        renderBreadcrumbs();
+        renderSidebarTree();
+        renderFileExplorer();
+        updateStatusBar();
+        updateBatchBar();
+      }
+
+      function renderBreadcrumbs() {
+        els.breadcrumbContainer.innerHTML = '';
+
+        if (state.sourceType === 'zip_archive') {
+          if (state.zipParentFolderRef) {
+            const backItem = document.createElement('div');
+            backItem.className = 'breadcrumb-item';
+            backItem.style.color = 'var(--primary)';
+            backItem.innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+              <span>Back to Folder</span>
+            `;
+            backItem.addEventListener('click', () => {
+              state.sourceType = 'local_folder';
+              renderActiveView();
+            });
+            els.breadcrumbContainer.appendChild(backItem);
+
+            const sep = document.createElement('div');
+            sep.className = 'breadcrumb-sep';
+            sep.textContent = '|';
+            els.breadcrumbContainer.appendChild(sep);
+          }
+
+          const rootItem = document.createElement('div');
+          rootItem.className = `breadcrumb-item ${state.zipCurrentPath === '' ? 'active' : ''}`;
+          rootItem.innerHTML = `
+            <span>${Icons.archive}</span>
+            <span>${escapeHtml(state.zipArchiveName)}</span>
+          `;
+          rootItem.addEventListener('click', () => navigateZipFolder(''));
+          els.breadcrumbContainer.appendChild(rootItem);
+
+          if (state.zipCurrentPath) {
+            const segments = state.zipCurrentPath.split('/');
+            let accum = '';
+            segments.forEach((seg, idx) => {
+              accum = accum ? `${accum}/${seg}` : seg;
+              const isLast = idx === segments.length - 1;
+              const targetPath = accum;
+
+              const sep = document.createElement('div');
+              sep.className = 'breadcrumb-sep';
+              sep.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+              els.breadcrumbContainer.appendChild(sep);
+
+              const item = document.createElement('div');
+              item.className = `breadcrumb-item ${isLast ? 'active' : ''}`;
+              item.textContent = seg;
+              item.addEventListener('click', () => navigateZipFolder(targetPath));
+              els.breadcrumbContainer.appendChild(item);
+            });
+          }
+
+        } else {
+          state.directoryHandleStack.forEach((frame, idx) => {
+            const isLast = idx === state.directoryHandleStack.length - 1;
+
+            if (idx > 0) {
+              const sep = document.createElement('div');
+              sep.className = 'breadcrumb-sep';
+              sep.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+              els.breadcrumbContainer.appendChild(sep);
+            }
+
+            const item = document.createElement('div');
+            item.className = `breadcrumb-item ${isLast ? 'active' : ''}`;
+            item.innerHTML = `
+              ${idx === 0 ? Icons.folder : ''}
+              <span>${escapeHtml(frame.name)}</span>
+            `;
+            item.addEventListener('click', () => navigateLocalFolderToIndex(idx));
+            els.breadcrumbContainer.appendChild(item);
+          });
+        }
+      }
+
+      function renderSidebarTree() {
+        els.treeContainer.innerHTML = '';
+
+        if (state.sourceType === 'zip_archive') {
+          const rootNode = document.createElement('div');
+          rootNode.className = `tree-node ${state.zipCurrentPath === '' ? 'active' : ''}`;
+          rootNode.innerHTML = `
+            <span>${Icons.archive}</span>
+            <span style="font-weight: 600;">[Archive Root]</span>
+          `;
+          rootNode.addEventListener('click', () => navigateZipFolder(''));
+          els.treeContainer.appendChild(rootNode);
+
+          const allDirs = state.zipEntries.filter(e => e.isDir).sort((a, b) => a.path.localeCompare(b.path));
+          const dirMap = new Map();
+          allDirs.forEach(dir => {
+            const parent = dir.parentPath || '';
+            if (!dirMap.has(parent)) dirMap.set(parent, []);
+            dirMap.get(parent).push(dir);
+          });
+
+          function renderSubTree(parentPath, container) {
+            const children = dirMap.get(parentPath) || [];
+            if (children.length === 0) return;
+            const childContainer = document.createElement('div');
+            childContainer.className = 'tree-children';
+
+            children.forEach(child => {
+              const node = document.createElement('div');
+              node.className = `tree-node ${state.zipCurrentPath === child.path ? 'active' : ''}`;
+              node.innerHTML = `
+                <span>${Icons.folder}</span>
+                <span class="text-truncate">${escapeHtml(child.name)}</span>
+              `;
+              node.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigateZipFolder(child.path);
+              });
+              childContainer.appendChild(node);
+              renderSubTree(child.path, childContainer);
+            });
+            container.appendChild(childContainer);
+          }
+
+          renderSubTree('', els.treeContainer);
+
+        } else {
+          const rootNode = document.createElement('div');
+          const isAtRoot = state.directoryHandleStack.length === 1;
+          rootNode.className = `tree-node ${isAtRoot ? 'active' : ''}`;
+          rootNode.innerHTML = `
+            <span>${Icons.folder}</span>
+            <span style="font-weight: 600;">${escapeHtml(state.directoryHandleStack[0]?.name || 'Root Folder')}</span>
+          `;
+          rootNode.addEventListener('click', () => navigateLocalFolderToIndex(0));
+          els.treeContainer.appendChild(rootNode);
+
+          const currentSubfolders = state.folderEntries.filter(e => e.isDir);
+          if (currentSubfolders.length > 0) {
+            const childContainer = document.createElement('div');
+            childContainer.className = 'tree-children';
+
+            currentSubfolders.forEach(sub => {
+              const node = document.createElement('div');
+              node.className = 'tree-node';
+              node.innerHTML = `
+                <span>${Icons.folder}</span>
+                <span class="text-truncate">${escapeHtml(sub.name)}</span>
+              `;
+              node.addEventListener('click', () => navigateLocalFolderSub(sub));
+              childContainer.appendChild(node);
+            });
+            els.treeContainer.appendChild(childContainer);
+          }
+        }
+      }
+
+      // Filter and Sort Active Items with FOLDERS ALWAYS PINNED TO TOP
+      function getActiveEntries() {
+        let list = [];
+
+        if (state.sourceType === 'zip_archive') {
+          if (state.searchQuery.trim() !== '') {
+            const q = state.searchQuery.trim().toLowerCase();
+            list = state.zipEntries.filter(e => e.name.toLowerCase().includes(q) || e.path.toLowerCase().includes(q));
+          } else {
+            list = state.zipEntries.filter(e => e.parentPath === state.zipCurrentPath);
+          }
+        } else {
+          list = [...state.folderEntries];
+          if (state.searchQuery.trim() !== '') {
+            const q = state.searchQuery.trim().toLowerCase();
+            list = list.filter(e => e.name.toLowerCase().includes(q));
+          }
+        }
+
+        // Sorting with Folders ALWAYS pinned to top
+        list.sort((a, b) => {
+          if (a.isDir && !b.isDir) return -1;
+          if (!a.isDir && b.isDir) return 1;
+
+          const preset = state.sortPreset;
+
+          if (preset === 'name_asc') {
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+          } else if (preset === 'name_desc') {
+            return b.name.toLowerCase().localeCompare(a.name.toLowerCase());
+          } else if (preset === 'size_desc') {
+            return (b.size || 0) - (a.size || 0);
+          } else if (preset === 'size_asc') {
+            return (a.size || 0) - (b.size || 0);
+          } else if (preset === 'date_desc') {
+            const timeA = a.date ? new Date(a.date).getTime() : 0;
+            const timeB = b.date ? new Date(b.date).getTime() : 0;
+            return timeB - timeA;
+          } else if (preset === 'date_asc') {
+            const timeA = a.date ? new Date(a.date).getTime() : 0;
+            const timeB = b.date ? new Date(b.date).getTime() : 0;
+            return timeA - timeB;
+          }
+          return 0;
+        });
+
+        return list;
+      }
+
+      // Render File Explorer (Table or Grid)
+      function renderFileExplorer() {
+        const entries = getActiveEntries();
+
+        if (entries.length === 0) {
+          els.noFilesNotice.classList.remove('hidden');
+          els.tableViewWrapper.classList.add('hidden');
+          els.gridViewContainer.classList.add('hidden');
+          return;
+        }
+
+        els.noFilesNotice.classList.add('hidden');
+
+        if (state.viewMode === 'list') {
+          els.tableViewWrapper.classList.remove('hidden');
+          els.gridViewContainer.classList.remove('active');
+          renderTableRows(entries);
+        } else {
+          els.tableViewWrapper.classList.add('hidden');
+          els.gridViewContainer.classList.add('active');
+          renderGridCards(entries);
+        }
+
+        updateSortIndicators();
+      }
+
+      // Render Table Rows
+      function renderTableRows(entries) {
+        els.fileTableBody.innerHTML = '';
+
+        // Up one level row
+        const canGoUp = (state.sourceType === 'zip_archive' && state.zipCurrentPath && !state.searchQuery) ||
+                        (state.sourceType === 'local_folder' && state.directoryHandleStack.length > 1 && !state.searchQuery);
+
+        if (canGoUp) {
+          const upRow = document.createElement('tr');
+          upRow.innerHTML = `
+            <td></td>
+            <td>
+              <div class="file-name-cell" style="color: var(--primary);">
+                <span class="file-icon">${Icons.folderOpen}</span>
+                <span style="font-weight: 600;">.. [Up to Parent Folder]</span>
+              </div>
+            </td>
+            <td>--</td>
+            <td>Folder</td>
+            <td>--</td>
+            <td></td>
+          `;
+          upRow.addEventListener('click', navigateUpOneLevel);
+          els.fileTableBody.appendChild(upRow);
+        }
+
+        entries.forEach(entry => {
+          const row = document.createElement('tr');
+          const isSelected = state.selectedPaths.has(entry.path);
+          if (isSelected) row.classList.add('selected');
+
+          const fmt = getFormatDetails(entry.name, entry.isDir);
+
+          row.innerHTML = `
+            <td style="text-align: center;" onclick="event.stopPropagation();">
+              <input type="checkbox" class="row-select-checkbox" data-path="${escapeHtml(entry.path)}" ${isSelected ? 'checked' : ''} />
+            </td>
+            <td>
+              <div class="file-name-cell">
+                <span class="file-icon">${fmt.icon}</span>
+                <span class="text-truncate" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</span>
+                ${fmt.isArchive ? '<span style="font-size:0.68rem; background:var(--accent-subtle); color:var(--accent); padding:1px 5px; border-radius:4px; font-weight:600;">ZIP</span>' : ''}
+              </div>
+            </td>
+            <td>${entry.isDir ? '--' : formatBytes(entry.size)}</td>
+            <td style="color: var(--text-muted);">${fmt.typeName}</td>
+            <td style="color: var(--text-muted);">${formatDate(entry.date)}</td>
+            <td style="text-align: right;" onclick="event.stopPropagation();">
+              <div class="row-actions">
+                ${state.sourceType === 'zip_archive' && !entry.isDir ? `
+                  <button class="btn-extract-pill btn-extract-row" title="Extract and download" data-path="${escapeHtml(entry.path)}">
+                    ${Icons.download}
+                    <span>Extract</span>
+                  </button>
+                  <button class="action-icon-btn btn-preview-row" title="Universal Preview">
+                    ${Icons.preview}
+                  </button>
+                ` : !entry.isDir ? `
+                  ${fmt.isArchive ? `
+                    <button class="btn btn-secondary btn-sm btn-mount-zip-row" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" title="Inspect inside zip">
+                      ${Icons.archive}
+                      <span>Inspect</span>
+                    </button>
+                  ` : ''}
+                  <button class="action-icon-btn btn-preview-row" title="Universal Preview">
+                    ${Icons.preview}
+                  </button>
+                ` : `
+                  <button class="action-icon-btn btn-enter-folder" title="Open folder">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                `}
+                <!-- 3-Dots Button -->
+                <button class="action-icon-btn btn-row-menu" title="More Actions">
+                  ${Icons.dots}
+                </button>
+              </div>
+            </td>
+          `;
+
+          row.addEventListener('click', () => handleEntryClick(entry));
+
+          const checkbox = row.querySelector('.row-select-checkbox');
+          checkbox.addEventListener('change', (e) => toggleSelectEntry(entry.path, e.target.checked));
+
+          const extractBtn = row.querySelector('.btn-extract-row');
+          if (extractBtn) extractBtn.addEventListener('click', () => extractSingleFile(entry));
+
+          const mountZipBtn = row.querySelector('.btn-mount-zip-row');
+          if (mountZipBtn) mountZipBtn.addEventListener('click', () => mountZipFromLocalEntry(entry));
+
+          const previewBtn = row.querySelector('.btn-preview-row');
+          if (previewBtn) previewBtn.addEventListener('click', () => openUniversalViewer(entry));
+
+          const enterFolderBtn = row.querySelector('.btn-enter-folder');
+          if (enterFolderBtn) enterFolderBtn.addEventListener('click', () => handleEntryClick(entry));
+
+          const menuBtn = row.querySelector('.btn-row-menu');
+          if (menuBtn) {
+            menuBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openRowContextMenu(e.currentTarget, entry);
+            });
+          }
+
+          els.fileTableBody.appendChild(row);
+        });
+
+        updateSelectAllHeader();
+      }
+
+      // Render Grid Cards
+      function renderGridCards(entries) {
+        els.gridViewContainer.innerHTML = '';
+
+        entries.forEach(entry => {
+          const card = document.createElement('div');
+          const isSelected = state.selectedPaths.has(entry.path);
+          card.className = `grid-item ${isSelected ? 'selected' : ''}`;
+
+          const fmt = getFormatDetails(entry.name, entry.isDir);
+
+          card.innerHTML = `
+            <input type="checkbox" class="grid-item-checkbox" data-path="${escapeHtml(entry.path)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();" />
+            <button class="grid-item-menu-btn" title="More Actions">${Icons.dots}</button>
+            <div class="grid-icon">${fmt.icon}</div>
+            <div class="grid-name" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</div>
+            <div class="grid-meta">${entry.isDir ? 'Folder' : formatBytes(entry.size)}</div>
+            ${state.sourceType === 'zip_archive' && !entry.isDir ? `
+              <button class="btn-extract-pill btn-grid-extract" style="margin-top: 0.35rem;" title="Extract file">
+                ${Icons.download} Extract
+              </button>
+            ` : ''}
+          `;
+
+          card.addEventListener('click', () => handleEntryClick(entry));
+
+          const checkbox = card.querySelector('.grid-item-checkbox');
+          checkbox.addEventListener('change', (e) => toggleSelectEntry(entry.path, e.target.checked));
+
+          const menuBtn = card.querySelector('.grid-item-menu-btn');
+          menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openRowContextMenu(e.currentTarget, entry);
+          });
+
+          const gridExtractBtn = card.querySelector('.btn-grid-extract');
+          if (gridExtractBtn) {
+            gridExtractBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              extractSingleFile(entry);
+            });
+          }
+
+          els.gridViewContainer.appendChild(card);
+        });
+      }
+
+      function handleEntryClick(entry) {
+        if (entry.isDir) {
+          if (state.sourceType === 'zip_archive') {
+            navigateZipFolder(entry.path);
+          } else {
+            navigateLocalFolderSub(entry);
+          }
+        } else {
+          const fmt = getFormatDetails(entry.name, false);
+          if (fmt.isArchive && state.sourceType === 'local_folder') {
+            mountZipFromLocalEntry(entry);
+          } else {
+            openUniversalViewer(entry);
+          }
+        }
+      }
+
+      async function mountZipFromLocalEntry(entry) {
+        try {
+          let fileObj = entry.file;
+          if (!fileObj && entry.handle) {
+            fileObj = await entry.handle.getFile();
+          }
+          if (fileObj) {
+            loadArchiveFromFile(fileObj, {
+              directoryHandleStack: [...state.directoryHandleStack],
+              isFallback: state.isFallbackFolder,
+            });
+          }
+        } catch (e) {
+          showToast('Read Error', 'Could not open zip: ' + e.message, 'error');
+        }
+      }
+
+      // Selection handling
+      function toggleSelectEntry(path, isSelected) {
+        if (isSelected) state.selectedPaths.add(path);
+        else state.selectedPaths.delete(path);
+        updateSelectAllHeader();
+        updateStatusBar();
+        updateBatchBar();
+      }
+
+      function updateSelectAllHeader() {
+        const selectable = getActiveEntries();
+        if (selectable.length === 0) {
+          els.thSelectAllCheckbox.checked = false;
+          return;
+        }
+        els.thSelectAllCheckbox.checked = selectable.every(e => state.selectedPaths.has(e.path));
+      }
+
+      // Floating Batch Action Bar Updates
+      function updateBatchBar() {
+        const count = state.selectedPaths.size;
+        if (count > 0 && state.sourceType !== 'none') {
+          let totalBytes = 0;
+          getActiveEntries().forEach(e => {
+            if (state.selectedPaths.has(e.path) && !e.isDir) totalBytes += e.size || 0;
+          });
+          els.batchCountLabel.textContent = `${count} selected (${formatBytes(totalBytes)})`;
+          els.floatingBatchBar.classList.add('visible');
+        } else {
+          els.floatingBatchBar.classList.remove('visible');
+        }
+      }
+
+      function updateSortIndicators() {
+        ['name', 'size', 'type', 'date'].forEach(col => {
+          const el = document.getElementById(`sort${col.charAt(0).toUpperCase() + col.slice(1)}Indicator`);
+          if (el) {
+            if (state.sortPreset.startsWith(col)) {
+              el.textContent = state.sortPreset.endsWith('asc') ? ' ↑' : ' ↓';
+            } else {
+              el.textContent = '';
+            }
+          }
+        });
+      }
+
+      function handleTableSortHeaderClick(colKey) {
+        // Toggle asc/desc or switch column
+        let newPreset = `${colKey}_asc`;
+        if (state.sortPreset === `${colKey}_asc`) {
+          newPreset = `${colKey}_desc`;
+        } else if (state.sortPreset === `${colKey}_desc`) {
+          newPreset = `${colKey}_asc`;
+        }
+        state.sortPreset = newPreset;
+        els.sortSelect.value = newPreset;
+        localStorage.setItem('webzip_sort_preset', newPreset);
+        renderFileExplorer();
+      }
+
+      function updateStatusBar() {
+        const entries = getActiveEntries();
+        const files = entries.filter(e => !e.isDir);
+        const folders = entries.filter(e => e.isDir);
+
+        let totalBytes = 0;
+        files.forEach(f => totalBytes += f.size || 0);
+
+        let selectedBytes = 0;
+        entries.forEach(e => {
+          if (state.selectedPaths.has(e.path) && !e.isDir) selectedBytes += e.size || 0;
+        });
+
+        els.statusItemCount.textContent = `${entries.length} items (${files.length} files, ${folders.length} folders)`;
+        els.statusSelectionSummary.textContent = `${state.selectedPaths.size} selected (${formatBytes(selectedBytes)})`;
+        els.statusTotalSize.textContent = `Total: ${formatBytes(totalBytes)}`;
+      }
+
+      function closeActiveView() {
+        cleanupActiveViewer();
+        state.sourceType = 'none';
+        state.currentZip = null;
+        state.rootDirectoryHandle = null;
+        state.directoryHandleStack = [];
+        state.folderEntries = [];
+        state.fallbackFiles = [];
+        state.zipEntries = [];
+        state.selectedPaths.clear();
+        state.searchQuery = '';
+        els.searchInput.value = '';
+
+        renderActiveView();
+        showToast('Closed', 'Storage explorer closed.', 'info', 2000);
+      }
+
+      // ==========================================
+      // 4. UNIVERSAL FILE VIEWER (ANY EXTENSION)
+      // ==========================================
+
+      function cleanupActiveViewer() {
+        if (state.activeViewerUrl) {
+          revokeTrackedBlobUrl(state.activeViewerUrl);
+          state.activeViewerUrl = null;
+        }
+        state.activeViewerBlob = null;
+        state.activeViewerEntry = null;
+        state.viewerZoomLevel = 1;
+        state.hexBytesLimit = 65536; // Reset to 64KB
+      }
+
+      async function openUniversalViewer(entry) {
+        if (!entry || entry.isDir) return;
+        cleanupActiveViewer();
+
+        state.activeViewerEntry = entry;
+        const fmt = getFormatDetails(entry.name, false);
+
+        els.viewerFileName.textContent = entry.name;
+        els.viewerFileIcon.innerHTML = fmt.icon;
+        els.viewerFileMeta.textContent = `Size: ${formatBytes(entry.size)} | Modified: ${formatDate(entry.date)}`;
+        els.viewerFileMime.textContent = `MIME: ${fmt.mime}`;
+        els.viewerDownloadLabel.textContent = state.sourceType === 'zip_archive' ? 'Extract & Save' : 'Download';
+
+        els.universalViewerContainer.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding: 2rem;">Loading content...</div>';
+        els.modalUniversalViewer.classList.add('open');
+
+        els.viewerImageTools.classList.add('hidden');
+        els.viewerTextTools.classList.add('hidden');
+
+        try {
+          let blob = null;
+          if (state.sourceType === 'zip_archive') {
+            const zipFile = state.currentZip.file(entry.fullPath);
+            if (!zipFile) throw new Error('File not found in archive');
+            blob = await zipFile.async('blob');
+          } else {
+            if (entry.file) blob = entry.file;
+            else if (entry.handle) blob = await entry.handle.getFile();
+          }
+
+          if (!blob) throw new Error('Could not access file bytes');
+
+          state.activeViewerBlob = blob;
+          state.activeViewerUrl = registerTrackedBlobUrl(URL.createObjectURL(blob));
+
+          if (['image', 'audio', 'video', 'pdf', 'code'].includes(fmt.category)) {
+            setViewerTab('preview');
+          } else {
+            setViewerTab('text');
+          }
+
+        } catch (err) {
+          console.error('Universal Viewer Error:', err);
+          els.universalViewerContainer.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: var(--danger);">
+              Failed to load file: ${escapeHtml(err.message)}
+            </div>
+          `;
+        }
+      }
+
+      function closeUniversalViewer() {
+        cleanupActiveViewer();
+        els.universalViewerContainer.innerHTML = '';
+        els.modalUniversalViewer.classList.remove('open');
+      }
+
+      function setViewerTab(tabKey) {
+        state.activeViewerTab = tabKey;
+        [els.tabBtnPreview, els.tabBtnText, els.tabBtnHex].forEach(btn => {
+          if (btn.dataset.tab === tabKey) btn.classList.add('active');
+          else btn.classList.remove('active');
+        });
+
+        renderCurrentViewerTab();
+      }
+
+      async function renderCurrentViewerTab() {
+        if (!state.activeViewerBlob || !state.activeViewerEntry) return;
+
+        const entry = state.activeViewerEntry;
+        const fmt = getFormatDetails(entry.name, false);
+
+        els.viewerImageTools.classList.add('hidden');
+        els.viewerTextTools.classList.add('hidden');
+
+        if (state.activeViewerTab === 'preview') {
+          if (fmt.category === 'image') {
+            els.viewerImageTools.classList.remove('hidden');
+            els.universalViewerContainer.innerHTML = `
+              <div class="preview-image-wrapper">
+                <img id="viewerImageElement" src="${state.activeViewerUrl}" class="preview-image" style="transform: scale(${state.viewerZoomLevel});" alt="${escapeHtml(entry.name)}" />
+              </div>
+            `;
+          } else if (fmt.category === 'audio') {
+            els.universalViewerContainer.innerHTML = `
+              <div style="padding: 2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; width: 100%;">
+                <div style="color: var(--accent); transform: scale(1.5); margin-bottom: 0.5rem;">${fmt.icon}</div>
+                <audio controls src="${state.activeViewerUrl}" class="preview-media-player"></audio>
+              </div>
+            `;
+          } else if (fmt.category === 'video') {
+            els.universalViewerContainer.innerHTML = `
+              <div style="padding: 1rem; display: flex; justify-content: center; width: 100%;">
+                <video controls src="${state.activeViewerUrl}" class="preview-media-player" style="max-height: 55vh; width: auto;"></video>
+              </div>
+            `;
+          } else if (fmt.category === 'pdf') {
+            els.universalViewerContainer.innerHTML = `
+              <iframe src="${state.activeViewerUrl}#toolbar=1" style="width: 100%; height: 55vh; border: none; border-radius: 6px;"></iframe>
+            `;
+          } else {
+            renderTextCodePreview();
+          }
+
+        } else if (state.activeViewerTab === 'text') {
+          renderRawUtf8TextPreview();
+
+        } else if (state.activeViewerTab === 'hex') {
+          renderHexViewerPerformanceSafe();
+        }
+      }
+
+      async function renderTextCodePreview() {
+        els.viewerTextTools.classList.remove('hidden');
+        try {
+          const text = await state.activeViewerBlob.text();
+          const lines = text.split('\n');
+          const maxLines = 1000;
+          const displayLines = lines.slice(0, maxLines);
+          const lineNums = displayLines.map((_, i) => `<span>${i + 1}</span>`).join('\n');
+
+          els.universalViewerContainer.innerHTML = `
+            <div class="preview-code-container">
+              <pre class="preview-code-lines">${lineNums}</pre>
+              <pre id="codeContentPre" class="preview-code-content ${state.viewerWordWrap ? 'wrapped' : ''}">${escapeHtml(displayLines.join('\n'))}${lines.length > maxLines ? `\n\n... [Truncated ${lines.length - maxLines} lines for performance]` : ''}</pre>
+            </div>
+          `;
+        } catch (err) {
+          renderRawUtf8TextPreview();
+        }
+      }
+
+      async function renderRawUtf8TextPreview() {
+        els.viewerTextTools.classList.remove('hidden');
+        try {
+          const buf = await state.activeViewerBlob.slice(0, 1024 * 300).arrayBuffer();
+          const decoder = new TextDecoder('utf-8', { fatal: false });
+          let rawText = decoder.decode(buf);
+          rawText = rawText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '·');
+
+          const lines = rawText.split('\n');
+          const lineNums = lines.map((_, i) => `<span>${i + 1}</span>`).join('\n');
+
+          els.universalViewerContainer.innerHTML = `
+            <div class="preview-code-container">
+              <pre class="preview-code-lines">${lineNums}</pre>
+              <pre id="codeContentPre" class="preview-code-content ${state.viewerWordWrap ? 'wrapped' : ''}">${escapeHtml(lines.join('\n'))}</pre>
+            </div>
+          `;
+        } catch (err) {
+          els.universalViewerContainer.innerHTML = `<div style="padding:2rem; color:var(--danger);">Error decoding text buffer: ${escapeHtml(err.message)}</div>`;
+        }
+      }
+
+      // Performance-Optimized Hex Viewer: Limits initial rendering to 64KB with "Load More Bytes"
+      async function renderHexViewerPerformanceSafe() {
+        const totalSize = state.activeViewerBlob.size;
+        const renderBytes = Math.min(state.hexBytesLimit, totalSize);
+
+        try {
+          const sliceBlob = state.activeViewerBlob.slice(0, renderBytes);
+          const buf = await sliceBlob.arrayBuffer();
+          const uint8 = new Uint8Array(buf);
+
+          let rowsHtml = '';
+          for (let rowOffset = 0; rowOffset < uint8.length; rowOffset += 16) {
+            const currentAbsOffset = rowOffset.toString(16).padStart(8, '0').toUpperCase();
+            let bytesHex = '';
+            let asciiStr = '';
+
+            for (let i = 0; i < 16; i++) {
+              if (rowOffset + i < uint8.length) {
+                const b = uint8[rowOffset + i];
+                bytesHex += b.toString(16).padStart(2, '0').toUpperCase() + ' ';
+                asciiStr += (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.';
+              } else {
+                bytesHex += '   ';
+              }
+              if (i === 7) bytesHex += ' ';
+            }
+
+            rowsHtml += `
+              <tr>
+                <td class="hex-offset-col">${currentAbsOffset}</td>
+                <td class="hex-bytes-col">${escapeHtml(bytesHex)}</td>
+                <td class="hex-ascii-col">${escapeHtml(asciiStr)}</td>
+              </tr>
+            `;
+          }
+
+          const hasMore = renderBytes < totalSize;
+
+          els.universalViewerContainer.innerHTML = `
+            <div class="hex-viewer-container">
+              <table class="hex-table">
+                <tbody>
+                  ${rowsHtml}
+                </tbody>
+              </table>
+              <div class="hex-pagination-bar">
+                <span>Displaying first ${formatBytes(renderBytes)} of ${formatBytes(totalSize)} (64KB memory safe limit)</span>
+                ${hasMore ? `
+                  <button class="btn btn-secondary btn-sm" id="btnHexLoadMore">
+                    <span>Load more bytes (+64 KB)</span>
+                  </button>
+                ` : '<span style="color:var(--success); font-weight:600;">Full file rendered</span>'}
+              </div>
+            </div>
+          `;
+
+          const loadMoreBtn = document.getElementById('btnHexLoadMore');
+          if (loadMoreBtn) {
+            loadMoreBtn.onclick = () => {
+              state.hexBytesLimit += 65536; // Add +64KB
+              renderHexViewerPerformanceSafe();
+            };
+          }
+
+        } catch (e) {
+          els.universalViewerContainer.innerHTML = `<div style="padding:2rem; color:var(--danger);">Error rendering hex view: ${escapeHtml(e.message)}</div>`;
+        }
+      }
+
+      // ==========================================
+      // 5. CONTEXT MENU & MODALS (INFO, RENAME, DELETE)
+      // ==========================================
+
+      function openRowContextMenu(targetBtn, entry) {
+        state.activeMenuEntry = entry;
+        const rect = targetBtn.getBoundingClientRect();
+        const menu = els.rowDropdownMenu;
+
+        menu.style.top = `${rect.bottom + 4}px`;
+        let leftPos = rect.right - 165;
+        if (leftPos < 10) leftPos = 10;
+        menu.style.left = `${leftPos}px`;
+
+        if (state.sourceType === 'zip_archive') {
+          els.menuExtractLabel.textContent = entry.isDir ? 'Extract (Folder)' : 'Extract File';
+        } else {
+          els.menuExtractLabel.textContent = 'Download File';
+        }
+
+        menu.classList.add('active');
+      }
+
+      function closeRowContextMenu() {
+        els.rowDropdownMenu.classList.remove('active');
+      }
+
+      function showItemInfo(entry) {
+        closeRowContextMenu();
+        if (!entry) return;
+
+        const fmt = getFormatDetails(entry.name, entry.isDir);
+
+        els.itemInfoGrid.innerHTML = `
+          <div class="info-label">Name:</div>
+          <div class="info-value">${escapeHtml(entry.name)}</div>
+
+          <div class="info-label">Path:</div>
+          <div class="info-value">${escapeHtml(entry.path || entry.name)}</div>
+
+          <div class="info-label">Type:</div>
+          <div class="info-value">${fmt.typeName}</div>
+
+          <div class="info-label">MIME Type:</div>
+          <div class="info-value">${fmt.mime}</div>
+
+          <div class="info-label">Size:</div>
+          <div class="info-value">${entry.isDir ? '--' : `${formatBytes(entry.size)} (${(entry.size || 0).toLocaleString()} bytes)`}</div>
+
+          ${entry.compressedSize ? `
+            <div class="info-label">Compressed:</div>
+            <div class="info-value">${formatBytes(entry.compressedSize)}</div>
+          ` : ''}
+
+          ${entry.crc32 ? `
+            <div class="info-label">CRC-32:</div>
+            <div class="info-value">${entry.crc32.toString(16).toUpperCase()}</div>
+          ` : ''}
+
+          <div class="info-label">Modified:</div>
+          <div class="info-value">${formatDate(entry.date)}</div>
+
+          <div class="info-label">Location:</div>
+          <div class="info-value">${state.sourceType === 'zip_archive' ? `Archive (${state.zipArchiveName})` : 'Local Storage'}</div>
+        `;
+
+        els.modalItemInfo.classList.add('open');
+      }
+
+      function showRenamePrompt(entry) {
+        closeRowContextMenu();
+        if (!entry) return;
+
+        state.renameTargetEntry = entry;
+        els.inputRenameVal.value = entry.name;
+        els.modalRename.classList.add('open');
+        setTimeout(() => els.inputRenameVal.focus(), 100);
+      }
+
+      function executeRename() {
+        const newName = els.inputRenameVal.value.trim();
+        if (!newName || !state.renameTargetEntry) return;
+
+        const entry = state.renameTargetEntry;
+        const oldName = entry.name;
+
+        entry.name = newName;
+        if (state.sourceType === 'zip_archive') {
+          const zipEntry = state.zipEntries.find(e => e === entry);
+          if (zipEntry) {
+            zipEntry.name = newName;
+            zipEntry.path = zipEntry.parentPath ? `${zipEntry.parentPath}/${newName}` : newName;
+          }
+        } else {
+          entry.name = newName;
+          entry.path = newName;
+        }
+
+        els.modalRename.classList.remove('open');
+        renderActiveView();
+        showToast('Renamed', `Renamed "${oldName}" to "${newName}"`, 'success');
+      }
+
+      function executeDelete(entry) {
+        closeRowContextMenu();
+        if (!entry) return;
+
+        const confirmed = confirm(`Remove "${entry.name}" from current view?`);
+        if (!confirmed) return;
+
+        if (state.sourceType === 'zip_archive') {
+          if (state.currentZip) state.currentZip.remove(entry.fullPath);
+          state.zipEntries = state.zipEntries.filter(e => e !== entry && !e.path.startsWith(entry.path + '/'));
+        } else {
+          state.folderEntries = state.folderEntries.filter(e => e !== entry);
+          if (state.isFallbackFolder) {
+            state.fallbackFiles = state.fallbackFiles.filter(f => !f.webkitRelativePath.includes(entry.name));
+          }
+        }
+
+        state.selectedPaths.delete(entry.path);
+        renderActiveView();
+        showToast('Removed', `"${entry.name}" removed from view.`, 'info');
+      }
+
+      // Batch Delete Selected
+      function executeBatchDelete() {
+        if (state.selectedPaths.size === 0) return;
+        const count = state.selectedPaths.size;
+        const confirmed = confirm(`Remove ${count} selected item${count > 1 ? 's' : ''} from current view?`);
+        if (!confirmed) return;
+
+        if (state.sourceType === 'zip_archive') {
+          state.zipEntries = state.zipEntries.filter(e => {
+            if (state.selectedPaths.has(e.path)) {
+              if (state.currentZip) state.currentZip.remove(e.fullPath);
+              return false;
+            }
+            return true;
+          });
+        } else {
+          state.folderEntries = state.folderEntries.filter(e => !state.selectedPaths.has(e.path));
+          if (state.isFallbackFolder) {
+            state.fallbackFiles = state.fallbackFiles.filter(f => !state.selectedPaths.has(f.name));
+          }
+        }
+
+        state.selectedPaths.clear();
+        renderActiveView();
+        showToast('Deleted', `${count} items removed from view.`, 'success');
+      }
+
+      // ==========================================
+      // 6. CREATE ARCHIVE (STORE:0, DEFLATE:1-9)
+      // ==========================================
+
+      function openCreateArchiveModal(initialFiles = []) {
+        state.stagedFiles = [...initialFiles];
+        renderStagedFiles();
+        els.createArchiveName.value = 'Archive.zip';
+        setCompressionLevel(state.createCompressionLevel || 6);
+        els.modalCreateArchive.classList.add('open');
+      }
+
+      function closeCreateArchiveModal() {
+        els.modalCreateArchive.classList.remove('open');
+      }
+
+      function setCompressionLevel(level) {
+        state.createCompressionLevel = level;
+        els.compressionLevelRange.value = level;
+        els.compressionLevelBadge.textContent = `Level ${level}`;
+
+        if (level === 0) {
+          els.compressionMethodLabel.textContent = 'STORE (No Compression)';
+          els.compressionDescription.textContent = 'Instantly packages files into a zip container without compression algorithms.';
+        } else if (level === 1) {
+          els.compressionMethodLabel.textContent = 'Fast DEFLATE (Level 1)';
+          els.compressionDescription.textContent = 'Fastest compression speed, suitable for large sets of already compressed data.';
+        } else if (level === 9) {
+          els.compressionMethodLabel.textContent = 'Maximum DEFLATE (Level 9)';
+          els.compressionDescription.textContent = 'Smallest possible file size. Best compression ratio, slightly higher CPU work.';
+        } else {
+          els.compressionMethodLabel.textContent = `Standard DEFLATE (Level ${level})`;
+          els.compressionDescription.textContent = 'Balanced speed and compression efficiency (standard zip algorithm).';
+        }
+      }
+
+      function addStagedFiles(fileList) {
+        for (let i = 0; i < fileList.length; i++) {
+          const file = fileList[i];
+          const relPath = file.webkitRelativePath || file.name;
+          const idx = state.stagedFiles.findIndex(f => f.path === relPath);
+          if (idx >= 0) state.stagedFiles[idx] = { file, path: relPath };
+          else state.stagedFiles.push({ file, path: relPath });
+        }
+        renderStagedFiles();
+      }
+
+      function removeStagedFile(index) {
+        state.stagedFiles.splice(index, 1);
+        renderStagedFiles();
+      }
+
+      function renderStagedFiles() {
+        els.stagedFileList.innerHTML = '';
+        const count = state.stagedFiles.length;
+        els.stagedCount.textContent = count;
+        els.btnGenerateZip.disabled = count === 0;
+
+        if (count === 0) {
+          els.stagedFileList.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1.5rem;">
+              No files added yet. Click "+ Add Files" or stage from your explorer.
+            </div>
+          `;
+          els.stagedTotalSize.textContent = '0 B';
+          return;
+        }
+
+        let totalSize = 0;
+        state.stagedFiles.forEach((item, idx) => {
+          totalSize += item.file.size;
+          const fmt = getFormatDetails(item.path, false);
+
+          const row = document.createElement('div');
+          row.className = 'staged-file-item';
+          row.innerHTML = `
+            <div class="staged-file-name" title="${escapeHtml(item.path)}">
+              <span>${fmt.icon}</span>
+              <span class="text-truncate">${escapeHtml(item.path)}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="color: var(--text-muted); font-size: 0.75rem;">${formatBytes(item.file.size)}</span>
+              <button class="action-icon-btn btn-remove-staged" title="Remove" data-idx="${idx}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          `;
+
+          row.querySelector('.btn-remove-staged').addEventListener('click', () => removeStagedFile(idx));
+          els.stagedFileList.appendChild(row);
+        });
+
+        els.stagedTotalSize.textContent = formatBytes(totalSize);
+      }
+
+      async function generateZipArchive() {
+        if (state.stagedFiles.length === 0) return;
+
+        let archiveName = els.createArchiveName.value.trim() || 'Archive.zip';
+        if (!archiveName.toLowerCase().endsWith('.zip')) archiveName += '.zip';
+
+        closeCreateArchiveModal();
+        showProgress('Compressing Files', `Building "${archiveName}"...`, 0);
+
+        try {
+          const zip = new JSZip();
+
+          state.stagedFiles.forEach(item => {
+            zip.file(item.path, item.file);
+          });
+
+          const level = state.createCompressionLevel;
+          const compType = level === 0 ? 'STORE' : 'DEFLATE';
+          const compOpts = level === 0 ? null : { level: level };
+
+          const contentBlob = await zip.generateAsync(
+            { type: 'blob', compression: compType, compressionOptions: compOpts },
+            metadata => updateProgress(`Compressing "${metadata.currentFile || archiveName}"`, metadata.percent)
+          );
+
+          hideProgress();
+          safeDownloadBlob(contentBlob, archiveName);
+          showToast('ZIP Created', `"${archiveName}" (${formatBytes(contentBlob.size)}) generated!`, 'success');
+
+          setTimeout(() => {
+            if (confirm(`Would you like to inspect "${archiveName}" in WebZip now?`)) {
+              const fileObj = new File([contentBlob], archiveName, { type: 'application/zip' });
+              loadArchiveFromFile(fileObj);
+            }
+          }, 400);
+
+        } catch (err) {
+          hideProgress();
+          console.error('Compression failed:', err);
+          showToast('Compression Error', err.message || 'Error compiling zip file.', 'error');
+        }
+      }
+
+      async function compressSelectedFilesToZip() {
+        if (state.selectedPaths.size === 0) return;
+
+        const staged = [];
+        for (const entry of getActiveEntries()) {
+          if (state.selectedPaths.has(entry.path) && !entry.isDir) {
+            let f = entry.file;
+            if (!f && entry.handle) f = await entry.handle.getFile();
+            else if (!f && state.currentZip) {
+              const zipFile = state.currentZip.file(entry.fullPath);
+              if (zipFile) {
+                const b = await zipFile.async('blob');
+                f = new File([b], entry.name);
+              }
+            }
+            if (f) staged.push({ file: f, path: entry.name });
+          }
+        }
+
+        if (staged.length === 0) {
+          showToast('Select Files', 'Please select at least one file to compress.', 'warning');
+          return;
+        }
+
+        openCreateArchiveModal(staged);
+      }
+
+      async function generateSampleDemoArchive() {
+        showProgress('Demo Archive', 'Building sample archive...', 15);
+        try {
+          const zip = new JSZip();
+          zip.file('README.md', `# WebZip Universal Manager\n\n- Local folder browsing with showDirectoryPicker()\n- Universal file viewer (Images, Audio/Video, PDFs, Code, Hex view)\n- Multi-select batch actions & custom compression level (STORE: 0, DEFLATE: 1-9)\n- Safe URL.revokeObjectURL lifecycle\n`);
+          zip.file('src/main.js', `console.log("WebZip Universal File Manager ready");\nfunction info() { return { offline: true, memorySafe: true }; }\n`);
+          zip.file('src/styles.css', `body { font-family: sans-serif; }\n.box { border-radius: 8px; }\n`);
+          zip.file('config.json', JSON.stringify({ app: "WebZip", version: "3.5.0", formatsSupported: "ALL" }, null, 2));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = 400;
+          canvas.height = 300;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const grad = ctx.createLinearGradient(0, 0, 400, 300);
+            grad.addColorStop(0, '#2563eb');
+            grad.addColorStop(1, '#7c3aed');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 400, 300);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('WebZip Universal Demo', 200, 140);
+            ctx.font = '16px sans-serif';
+            ctx.fillText('Universal File Viewer', 200, 180);
+
+            const imgBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+            if (imgBlob) zip.file('assets/sample.png', imgBlob);
+          }
+
+          const binData = new Uint8Array(256);
+          for (let i = 0; i < 256; i++) binData[i] = i;
+          zip.file('firmware.dat', binData);
+
+          updateProgress('Finalizing demo archive...', 85);
+          const demoBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+          const demoFile = new File([demoBlob], 'WebZip-Universal-Demo.zip', { type: 'application/zip' });
+
+          hideProgress();
+          await loadArchiveFromFile(demoFile);
+        } catch (e) {
+          hideProgress();
+          showToast('Error', 'Could not create demo archive: ' + e.message, 'error');
+        }
+      }
+
+      // ==========================================
+      // 7. EVENT LISTENERS
+      // ==========================================
+
+      function setupEventListeners() {
+        // Theme
+        els.btnThemeToggle.addEventListener('click', toggleTheme);
+
+        // Open Folder
+        els.btnOpenFolder.addEventListener('click', handleOpenFolderClick);
+        els.btnDropzoneOpenFolder.addEventListener('click', handleOpenFolderClick);
+        els.fallbackFolderInput.addEventListener('change', (e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            handleFallbackFolderSelected(e.target.files);
+            e.target.value = '';
+          }
+        });
+
+        // Open Zip
+        els.btnOpenArchive.addEventListener('click', () => els.fileArchiveInput.click());
+        els.btnDropzoneOpenZip.addEventListener('click', () => els.fileArchiveInput.click());
+        els.fileArchiveInput.addEventListener('change', (e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            loadArchiveFromFile(e.target.files[0]);
+            e.target.value = '';
+          }
+        });
+
+        // Create Zip
+        els.btnNewArchive.addEventListener('click', () => openCreateArchiveModal());
+        els.btnDropzoneCreateZip.addEventListener('click', () => openCreateArchiveModal());
+        els.btnCloseCreateModal.addEventListener('click', closeCreateArchiveModal);
+        els.btnCancelCreate.addEventListener('click', closeCreateArchiveModal);
+
+        // Compression Slider
+        els.compressionLevelRange.addEventListener('input', (e) => {
+          setCompressionLevel(parseInt(e.target.value, 10));
+        });
+
+        // Load Demo
+        els.btnLoadSampleZip.addEventListener('click', generateSampleDemoArchive);
+
+        // Close View / Home
+        els.btnCloseView.addEventListener('click', closeActiveView);
+        els.btnBrandHome.addEventListener('click', () => {
+          if (state.sourceType === 'zip_archive') navigateZipFolder('');
+          else if (state.sourceType === 'local_folder') navigateLocalFolderToIndex(0);
+        });
+
+        // "Up / Back" Navigation Button
+        els.btnNavUp.addEventListener('click', navigateUpOneLevel);
+
+        // Sorting Dropdown Change (with LocalStorage persistence)
+        els.sortSelect.addEventListener('change', (e) => {
+          state.sortPreset = e.target.value;
+          localStorage.setItem('webzip_sort_preset', state.sortPreset);
+          renderFileExplorer();
+        });
+
+        // Table Header Click for sorting
+        document.querySelectorAll('th.sortable').forEach(th => {
+          th.addEventListener('click', () => {
+            const col = th.dataset.sort;
+            if (col) handleTableSortHeaderClick(col);
+          });
+        });
+
+        // Drag & Drop
+        els.dropzoneEmpty.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          els.dropzoneEmpty.classList.add('drag-over');
+        });
+        els.dropzoneEmpty.addEventListener('dragleave', () => {
+          els.dropzoneEmpty.classList.remove('drag-over');
+        });
+        els.dropzoneEmpty.addEventListener('drop', (e) => {
+          e.preventDefault();
+          els.dropzoneEmpty.classList.remove('drag-over');
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const f = e.dataTransfer.files[0];
+            const ext = f.name.toLowerCase();
+            if (ext.endsWith('.zip') || ext.endsWith('.apk') || ext.endsWith('.jar') || ext.endsWith('.cbz')) {
+              loadArchiveFromFile(f);
+            } else {
+              openCreateArchiveModal(Array.from(e.dataTransfer.files).map(file => ({ file, path: file.name })));
+            }
+          }
+        });
+
+        // Real-time Search
+        els.searchInput.addEventListener('input', (e) => {
+          state.searchQuery = e.target.value;
+          if (state.searchQuery.trim() !== '') els.searchClearBtn.classList.add('visible');
+          else els.searchClearBtn.classList.remove('visible');
+          renderFileExplorer();
+        });
+
+        els.searchClearBtn.addEventListener('click', () => {
+          state.searchQuery = '';
+          els.searchInput.value = '';
+          els.searchClearBtn.classList.remove('visible');
+          renderFileExplorer();
+        });
+
+        // View Mode Toggles (with LocalStorage persistence)
+        els.btnViewList.addEventListener('click', () => {
+          state.viewMode = 'list';
+          localStorage.setItem('webzip_view_mode', 'list');
+          els.btnViewList.classList.add('active');
+          els.btnViewGrid.classList.remove('active');
+          renderFileExplorer();
+        });
+
+        els.btnViewGrid.addEventListener('click', () => {
+          state.viewMode = 'grid';
+          localStorage.setItem('webzip_view_mode', 'grid');
+          els.btnViewGrid.classList.add('active');
+          els.btnViewList.classList.remove('active');
+          renderFileExplorer();
+        });
+
+        // Select All Checkbox
+        els.thSelectAllCheckbox.addEventListener('change', (e) => {
+          const checked = e.target.checked;
+          getActiveEntries().forEach(entry => {
+            if (checked) state.selectedPaths.add(entry.path);
+            else state.selectedPaths.delete(entry.path);
+          });
+          renderFileExplorer();
+          updateStatusBar();
+          updateBatchBar();
+        });
+
+        // Floating Batch Action Bar Buttons
+        els.btnBatchZip.addEventListener('click', compressSelectedFilesToZip);
+        els.btnBatchExtract.addEventListener('click', extractSelectedFiles);
+        els.btnBatchDelete.addEventListener('click', executeBatchDelete);
+        els.btnBatchDeselect.addEventListener('click', () => {
+          state.selectedPaths.clear();
+          renderFileExplorer();
+          updateStatusBar();
+          updateBatchBar();
+        });
+
+        // Extract All
+        els.btnExtractAll.addEventListener('click', extractAllFiles);
+
+        // Sidebar Tree collapse reset
+        els.btnCollapseAllTree.addEventListener('click', () => {
+          if (state.sourceType === 'zip_archive') navigateZipFolder('');
+          else if (state.sourceType === 'local_folder') navigateLocalFolderToIndex(0);
+        });
+
+        // Universal Viewer Modal Events
+        els.btnCloseViewerModal.addEventListener('click', closeUniversalViewer);
+        els.btnCloseViewerBottom.addEventListener('click', closeUniversalViewer);
+
+        // Universal Viewer Tabs
+        els.tabBtnPreview.addEventListener('click', () => setViewerTab('preview'));
+        els.tabBtnText.addEventListener('click', () => setViewerTab('text'));
+        els.tabBtnHex.addEventListener('click', () => setViewerTab('hex'));
+
+        // Viewer Image Zoom
+        els.btnZoomIn.addEventListener('click', () => {
+          state.viewerZoomLevel = Math.min(state.viewerZoomLevel + 0.25, 4);
+          const img = document.getElementById('viewerImageElement');
+          if (img) img.style.transform = `scale(${state.viewerZoomLevel})`;
+        });
+
+        els.btnZoomOut.addEventListener('click', () => {
+          state.viewerZoomLevel = Math.max(state.viewerZoomLevel - 0.25, 0.5);
+          const img = document.getElementById('viewerImageElement');
+          if (img) img.style.transform = `scale(${state.viewerZoomLevel})`;
+        });
+
+        els.btnZoomReset.addEventListener('click', () => {
+          state.viewerZoomLevel = 1;
+          const img = document.getElementById('viewerImageElement');
+          if (img) img.style.transform = `scale(1)`;
+        });
+
+        // Viewer Word Wrap Toggle
+        els.btnToggleWordWrap.addEventListener('click', () => {
+          state.viewerWordWrap = !state.viewerWordWrap;
+          const pre = document.getElementById('codeContentPre');
+          if (pre) pre.classList.toggle('wrapped', state.viewerWordWrap);
+        });
+
+        // Viewer Copy All
+        els.btnCopyText.addEventListener('click', async () => {
+          if (!state.activeViewerBlob) return;
+          try {
+            const text = await state.activeViewerBlob.text();
+            await navigator.clipboard.writeText(text);
+            showToast('Copied', 'Content copied to clipboard!', 'success');
+          } catch (e) {
+            showToast('Copy Error', 'Clipboard copy failed: ' + e.message, 'error');
+          }
+        });
+
+        // Viewer Download / Open Button
+        els.btnViewerDownload.addEventListener('click', () => {
+          if (!state.activeViewerBlob || !state.activeViewerEntry) return;
+          if (state.sourceType === 'zip_archive') {
+            extractSingleFile(state.activeViewerEntry);
+          } else {
+            safeDownloadBlob(state.activeViewerBlob, state.activeViewerEntry.name);
+          }
+        });
+
+        // 3-Dots Dropdown Actions
+        els.menuItemPreview.addEventListener('click', () => {
+          closeRowContextMenu();
+          if (state.activeMenuEntry) openUniversalViewer(state.activeMenuEntry);
+        });
+
+        els.menuItemExtract.addEventListener('click', () => {
+          closeRowContextMenu();
+          if (!state.activeMenuEntry) return;
+          if (state.sourceType === 'zip_archive') {
+            extractSingleFile(state.activeMenuEntry);
+          } else {
+            if (state.activeMenuEntry.file) {
+              safeDownloadBlob(state.activeMenuEntry.file, state.activeMenuEntry.name);
+            } else if (state.activeMenuEntry.handle) {
+              state.activeMenuEntry.handle.getFile().then(f => safeDownloadBlob(f, state.activeMenuEntry.name));
+            }
+          }
+        });
+
+        els.menuItemInfo.addEventListener('click', () => {
+          if (state.activeMenuEntry) showItemInfo(state.activeMenuEntry);
+        });
+
+        els.menuItemRename.addEventListener('click', () => {
+          if (state.activeMenuEntry) showRenamePrompt(state.activeMenuEntry);
+        });
+
+        els.menuItemDelete.addEventListener('click', () => {
+          if (state.activeMenuEntry) executeDelete(state.activeMenuEntry);
+        });
+
+        // Rename Modal Buttons
+        els.btnCloseRenameModal.addEventListener('click', () => els.modalRename.classList.remove('open'));
+        els.btnCancelRename.addEventListener('click', () => els.modalRename.classList.remove('open'));
+        els.btnSaveRename.addEventListener('click', executeRename);
+        els.inputRenameVal.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') executeRename();
+        });
+
+        // Info Modal Buttons
+        els.btnCloseInfoModal.addEventListener('click', () => els.modalItemInfo.classList.remove('open'));
+        els.btnCloseInfoBtn.addEventListener('click', () => els.modalItemInfo.classList.remove('open'));
+
+        // Encrypted Alert Modal
+        els.btnCloseEncryptedAlert.addEventListener('click', () => els.modalEncryptedAlert.classList.remove('open'));
+        els.btnAckEncryptedAlert.addEventListener('click', () => els.modalEncryptedAlert.classList.remove('open'));
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!els.rowDropdownMenu.contains(e.target)) {
+            closeRowContextMenu();
+          }
+        });
+
+        // Staging for Create Archive
+        els.btnStageFiles.addEventListener('click', () => els.inputStageFiles.click());
+        els.inputStageFiles.addEventListener('change', (e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            addStagedFiles(e.target.files);
+            e.target.value = '';
+          }
+        });
+
+        els.btnStageFolder.addEventListener('click', () => els.inputStageFolder.click());
+        els.inputStageFolder.addEventListener('change', (e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            addStagedFiles(e.target.files);
+            e.target.value = '';
+          }
+        });
+
+        els.btnGenerateZip.addEventListener('click', generateZipArchive);
+
+        // Keyboard ESC
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            closeUniversalViewer();
+            closeCreateArchiveModal();
+            closeRowContextMenu();
+            els.modalItemInfo.classList.remove('open');
+            els.modalRename.classList.remove('open');
+            els.modalEncryptedAlert.classList.remove('open');
+          }
+        });
+
+        // Backdrop click to close modals
+        [els.modalCreateArchive, els.modalUniversalViewer, els.modalItemInfo, els.modalRename, els.modalEncryptedAlert].forEach(modal => {
+          modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+              modal.classList.remove('open');
+              if (modal === els.modalUniversalViewer) closeUniversalViewer();
+            }
+          });
+        });
+      }
+
+      // Initialization with Restored Preferences
+      function init() {
+        applyTheme(state.theme);
+        
+        // Restore view mode
+        if (state.viewMode === 'grid') {
+          els.btnViewGrid.classList.add('active');
+          els.btnViewList.classList.remove('active');
+        } else {
+          els.btnViewList.classList.add('active');
+          els.btnViewGrid.classList.remove('active');
+        }
+
+        // Restore sort preset
+        if (state.sortPreset && els.sortSelect) {
+          els.sortSelect.value = state.sortPreset;
+        }
+
+        setupEventListeners();
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>

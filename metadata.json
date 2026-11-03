@@ -1,0 +1,6 @@
+{
+  "name": "WebZip - Client-Side Archive Manager",
+  "description": "A responsive, client-side web archive manager inspired by ZArchiver and WinRAR to inspect, extract, preview, and create zip archives with 100% offline privacy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
