@@ -8,11 +8,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -27,7 +27,6 @@ jobs:
       - name: Setup Capacitor Configuration
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps
-          # كتابة ملف الإعدادات كـ JSON مباشر لتفادي تعارض TypeScript
           cat << 'EOF' > capacitor.config.json
           {
             "appId": "com.webzip.app",
