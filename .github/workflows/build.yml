@@ -41,6 +41,12 @@ jobs:
         run: |
           sed -i '/<application/i <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />' android/app/src/main/AndroidManifest.xml
 
+      - name: Fix Kotlin Duplicate Classes Conflict
+        run: |
+          echo "android.enableJetifier=true" >> android/gradle.properties
+          # توحيد إصدار kotlin-stdlib لمنع تكرار الكلاسات
+          sed -i 's/dependencies {/dependencies {\n    constraints {\n        implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22") { because("duplicate class") }\n        implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22") { because("duplicate class") }\n    }/' android/app/build.gradle
+
       - name: Build APK with Gradle
         run: |
           cd android
