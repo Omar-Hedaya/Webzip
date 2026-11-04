@@ -2,16 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>WebZip - Local Storage & Archive Manager</title>
-  <meta name="description" content="A fast, responsive, client-side web archive and storage manager. Browse local folders, inspect zip archives, preview ANY file with the Universal Viewer, and compress files offline." />
-  <meta property="og:title" content="WebZip - Local Storage & Archive Manager" />
-  <meta property="og:description" content="Universal client-side archive manager with directory picker, zip extraction, batch actions, and universal file preview." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>WebZip - Client-Side Archive Manager</title>
+  <meta name="description" content="A responsive, client-side web archive manager inspired by ZArchiver and WinRAR to inspect, extract, preview, and create zip archives with 100% offline privacy." />
+  <meta property="og:title" content="WebZip - Client-Side Archive Manager" />
+  <meta property="og:description" content="A responsive, client-side web archive manager inspired by ZArchiver and WinRAR to inspect, extract, preview, and create zip archives with 100% offline privacy." />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
 
-  <!-- JSZip CDN for in-browser compression and decompression -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- JSZip & fflate for high-performance memory-safe in-browser compression and decompression -->
+  <script src="/jszip.min.js"></script>
+  <script src="/fflate.min.js"></script>
+  <script>window.JSZip || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>');</script>
 
   <style>
     /* CSS Custom Properties for Light & Dark Themes */
@@ -154,6 +156,9 @@
       top: 0;
       z-index: 40;
       box-shadow: var(--shadow-sm);
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
     }
 
     .header-inner {
@@ -232,8 +237,10 @@
       user-select: none;
     }
 
-    .btn:active {
-      transform: scale(0.97);
+    .btn:active:not(:disabled) {
+      transform: scale(0.96);
+      filter: brightness(0.92);
+      transition: transform 0.08s ease, filter 0.08s ease;
     }
 
     .btn:disabled {
@@ -1082,7 +1089,8 @@
       box-shadow: var(--shadow-xl);
       width: 100%;
       max-width: 640px;
-      max-height: 90vh;
+      max-height: 85vh;
+      max-height: 85dvh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -1091,7 +1099,8 @@
 
     .modal-window.large {
       max-width: 960px;
-      max-height: 92vh;
+      max-height: 85vh;
+      max-height: 85dvh;
     }
 
     @keyframes modalSlideUp {
@@ -1107,6 +1116,7 @@
       justify-content: space-between;
       background-color: var(--bg-surface);
       gap: 0.5rem;
+      flex-shrink: 0;
     }
 
     .modal-title {
@@ -1142,6 +1152,9 @@
       display: flex;
       flex-direction: column;
       gap: 0.85rem;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
     }
 
     .modal-footer {
@@ -1152,6 +1165,7 @@
       justify-content: flex-end;
       gap: 0.65rem;
       background-color: var(--bg-subtle);
+      flex-shrink: 0;
     }
 
     /* Universal Viewer Controls & Tabs */
@@ -1163,6 +1177,7 @@
       padding-bottom: 0.5rem;
       flex-wrap: wrap;
       gap: 0.5rem;
+      flex-shrink: 0;
     }
 
     .viewer-tabs {
@@ -1206,10 +1221,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 280px;
-      max-height: 60vh;
+      min-height: 220px;
+      max-height: 52vh;
+      max-height: 52dvh;
       overflow: auto;
       position: relative;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
     }
 
     .preview-image-wrapper {
@@ -1218,13 +1236,16 @@
       justify-content: center;
       width: 100%;
       height: 100%;
-      padding: 1rem;
+      padding: 0.75rem;
       overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y pinch-zoom;
     }
 
     .preview-image {
       max-width: 100%;
-      max-height: 55vh;
+      max-height: 48vh;
+      max-height: 48dvh;
       object-fit: contain;
       border-radius: var(--radius-sm);
       transition: transform 0.15s ease;
@@ -1237,6 +1258,8 @@
       height: 100%;
       overflow: auto;
       background: var(--bg-surface);
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
     }
 
     .preview-code-lines {
@@ -1261,6 +1284,8 @@
       white-space: pre;
       overflow-x: auto;
       flex: 1;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
     }
 
     .preview-code-content.wrapped {
@@ -1282,6 +1307,8 @@
       font-family: var(--font-mono);
       font-size: 0.78rem;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
     }
 
     .hex-table {
@@ -1612,7 +1639,7 @@
 
       <div class="header-actions">
         <!-- 1. Open Folder (showDirectoryPicker or mobile fallback) -->
-        <input type="file" id="fallbackFolderInput" webkitdirectory directory multiple class="hidden" />
+        <input type="file" id="fallbackFolderInput" webkitdirectory directory multiple style="display:none;" />
         <button class="btn btn-primary" id="btnOpenFolder" title="Open local folder using File System API or mobile directory picker">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
@@ -1621,7 +1648,7 @@
         </button>
 
         <!-- 2. Open Zip -->
-        <input type="file" id="fileArchiveInput" accept=".zip,.jar,.apk,.docx,.xlsx,.pptx,.epub,.cbz" class="hidden" />
+        <input type="file" id="fileArchiveInput" accept=".zip,application/zip,application/x-zip-compressed,application/octet-stream,.apk,.jar,.docx,.xlsx,.pptx,.epub,.cbz" style="display:none;" />
         <button class="btn btn-secondary" id="btnOpenArchive" title="Open an existing .zip archive">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
@@ -2104,9 +2131,9 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
             <label class="form-label">Files to Compress (<span id="stagedCount">0</span>)</label>
             <div style="display: flex; gap: 0.4rem;">
-              <input type="file" id="inputStageFiles" multiple class="hidden" />
+              <input type="file" id="inputStageFiles" multiple style="display:none;" />
               <button class="btn btn-secondary btn-sm" id="btnStageFiles">+ Add Files</button>
-              <input type="file" id="inputStageFolder" webkitdirectory directory multiple class="hidden" />
+              <input type="file" id="inputStageFolder" webkitdirectory directory multiple style="display:none;" />
               <button class="btn btn-secondary btn-sm" id="btnStageFolder">+ Add Folder</button>
             </div>
           </div>
@@ -2655,24 +2682,114 @@
       }
 
       // ==========================================
+      // ANDROID / POPSTATE BACK NAVIGATION SYSTEM
+      // ==========================================
+
+      function pushModalHistory(name) {
+        try {
+          history.pushState({ webzipType: 'modal', name: name }, '');
+        } catch (e) {
+          // ignore in sandboxed environments
+        }
+      }
+
+      function pushFolderHistory(path) {
+        try {
+          history.pushState({ webzipType: 'folder', path: path }, '');
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      function hasAnyOpenModal() {
+        return (els.modalUniversalViewer && els.modalUniversalViewer.classList.contains('open')) ||
+               (els.modalCreateArchive && els.modalCreateArchive.classList.contains('open')) ||
+               (els.modalItemInfo && els.modalItemInfo.classList.contains('open')) ||
+               (els.modalRename && els.modalRename.classList.contains('open')) ||
+               (els.modalEncryptedAlert && els.modalEncryptedAlert.classList.contains('open')) ||
+               (els.rowDropdownMenu && els.rowDropdownMenu.classList.contains('active'));
+      }
+
+      function closeAllOpenModals() {
+        closeRowContextMenu();
+        if (els.modalUniversalViewer && els.modalUniversalViewer.classList.contains('open')) {
+          closeUniversalViewer(true);
+        }
+        if (els.modalCreateArchive && els.modalCreateArchive.classList.contains('open')) {
+          closeCreateArchiveModal(true);
+        }
+        if (els.modalItemInfo) els.modalItemInfo.classList.remove('open');
+        if (els.modalRename) els.modalRename.classList.remove('open');
+        if (els.modalEncryptedAlert) els.modalEncryptedAlert.classList.remove('open');
+      }
+
+      function canNavigateUp() {
+        if (state.sourceType === 'zip_archive') {
+          return state.zipCurrentPath !== '' || !!state.zipParentFolderRef;
+        }
+        if (state.sourceType === 'local_folder') {
+          return state.directoryHandleStack.length > 1;
+        }
+        return false;
+      }
+
+      function handleBackNavigation(e) {
+        // Vital Android fix: if preview modal is open, back closes the modal instead of exiting
+        if (els.modalUniversalViewer && els.modalUniversalViewer.classList.contains('open')) {
+          closeUniversalViewer(true);
+          return;
+        }
+
+        if (hasAnyOpenModal()) {
+          closeAllOpenModals();
+          return;
+        }
+
+        if (canNavigateUp()) {
+          navigateUpOneLevel(true);
+          return;
+        }
+
+        if (state.sourceType && state.sourceType !== 'none') {
+          closeActiveView();
+          return;
+        }
+      }
+
+      // ==========================================
       // 1. LOCAL STORAGE & FOLDER EXPLORER
       // ==========================================
 
-      async function handleOpenFolderClick() {
-        if (typeof window.showDirectoryPicker === 'function') {
-          try {
-            const dirHandle = await window.showDirectoryPicker();
-            await loadDirectoryFromHandle(dirHandle);
-          } catch (err) {
-            if (err.name !== 'AbortError') {
-              console.warn('showDirectoryPicker failed, falling back:', err);
-              showToast('Directory Access', 'Opening file selector fallback...', 'info');
-              els.fallbackFolderInput.click();
-            }
-          }
-        } else {
-          showToast('Folder Selection', 'Using mobile directory input for browser compatibility.', 'info');
+      function isMobileOrWebView() {
+        const ua = navigator.userAgent || '';
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Capacitor/i.test(ua) ||
+               !!window.Capacitor ||
+               !('showDirectoryPicker' in window);
+      }
+
+      function triggerFallbackFolderPicker() {
+        if (els.fallbackFolderInput) {
+          els.fallbackFolderInput.value = '';
           els.fallbackFolderInput.click();
+        }
+      }
+
+      async function handleOpenFolderClick() {
+        // Critical Android/Capacitor WebView fix: automatic fallback
+        if (isMobileOrWebView() || typeof window.showDirectoryPicker !== 'function') {
+          triggerFallbackFolderPicker();
+          return;
+        }
+
+        try {
+          const dirHandle = await window.showDirectoryPicker();
+          await loadDirectoryFromHandle(dirHandle);
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            console.warn('showDirectoryPicker failed, falling back:', err);
+            showToast('Directory Access', 'Opening file selector fallback...', 'info');
+            triggerFallbackFolderPicker();
+          }
         }
       }
 
@@ -2745,16 +2862,19 @@
         state.selectedPaths.clear();
 
         let rootName = 'Selected Folder';
-        const firstRel = files[0].webkitRelativePath;
+        const firstFile = files[0];
+        const firstRel = firstFile.webkitRelativePath || '';
         if (firstRel && firstRel.includes('/')) {
           rootName = firstRel.split('/')[0];
+        } else if (firstFile.name) {
+          rootName = files.length === 1 ? firstFile.name : 'Selected Items';
         }
 
         state.directoryHandleStack = [{ name: rootName, path: '' }];
         refreshFallbackFolderEntries('');
 
         hideProgress();
-        showToast('Folder Loaded', `Browsing ${files.length} items from "${rootName}"`, 'success');
+        showToast('Folder Loaded', `Browsing ${files.length} item(s) from "${rootName}"`, 'success');
       }
 
       function refreshFallbackFolderEntries(currentSubPath) {
@@ -2763,8 +2883,10 @@
         const prefix = currentSubPath ? (currentSubPath.endsWith('/') ? currentSubPath : currentSubPath + '/') : '';
 
         state.fallbackFiles.forEach(file => {
-          const rel = file.webkitRelativePath || file.name;
-          const relNoRoot = rel.includes('/') ? rel.substring(rel.indexOf('/') + 1) : rel;
+          // Robust fallback: if webkitRelativePath is missing or blank, use file.name
+          const hasRel = Boolean(file.webkitRelativePath && file.webkitRelativePath.trim() !== '');
+          const rawPath = hasRel ? file.webkitRelativePath : file.name;
+          const relNoRoot = (hasRel && rawPath.includes('/')) ? rawPath.substring(rawPath.indexOf('/') + 1) : rawPath;
 
           if (currentSubPath === '') {
             if (relNoRoot.includes('/')) {
@@ -2822,7 +2944,10 @@
         renderActiveView();
       }
 
-      async function navigateLocalFolderSub(folderItem) {
+      async function navigateLocalFolderSub(folderItem, skipHistory = false) {
+        if (!skipHistory) {
+          pushFolderHistory(folderItem.name);
+        }
         state.searchQuery = '';
         els.searchInput.value = '';
         els.searchClearBtn.classList.remove('visible');
@@ -2863,7 +2988,7 @@
         }
       }
 
-      function navigateUpOneLevel() {
+      function navigateUpOneLevel(fromPopstate = false) {
         if (state.sourceType === 'zip_archive') {
           if (!state.zipCurrentPath) {
             if (state.zipParentFolderRef) {
@@ -2874,7 +2999,7 @@
           }
           const parts = state.zipCurrentPath.split('/');
           parts.pop();
-          navigateZipFolder(parts.join('/'));
+          navigateZipFolder(parts.join('/'), true);
         } else if (state.sourceType === 'local_folder') {
           if (state.directoryHandleStack.length > 1) {
             navigateLocalFolderToIndex(state.directoryHandleStack.length - 2);
@@ -2976,6 +3101,7 @@
       }
 
       function showEncryptedAlert() {
+        pushModalHistory('encryptedAlert');
         els.modalEncryptedAlert.classList.add('open');
       }
 
@@ -3012,7 +3138,10 @@
         }
       }
 
-      function navigateZipFolder(targetPath) {
+      function navigateZipFolder(targetPath, skipHistory = false) {
+        if (!skipHistory && targetPath !== '') {
+          pushFolderHistory(targetPath);
+        }
         state.zipCurrentPath = targetPath;
         state.searchQuery = '';
         els.searchInput.value = '';
@@ -3691,10 +3820,30 @@
       // ==========================================
 
       function cleanupActiveViewer() {
+        // Immediate DOM release to free GPU memory and audio/video decoders in mobile WebViews
+        if (els.universalViewerContainer) {
+          const mediaEls = els.universalViewerContainer.querySelectorAll('video, audio, img, iframe');
+          mediaEls.forEach(el => {
+            try {
+              if (el.pause) el.pause();
+              el.src = '';
+              if (el.load) el.load();
+            } catch (e) {}
+          });
+          els.universalViewerContainer.innerHTML = '';
+        }
+
         if (state.activeViewerUrl) {
           revokeTrackedBlobUrl(state.activeViewerUrl);
           state.activeViewerUrl = null;
         }
+
+        // Immediately revoke any other tracked URLs
+        for (const url of activeObjectUrls) {
+          try { URL.revokeObjectURL(url); } catch (e) {}
+        }
+        activeObjectUrls.clear();
+
         state.activeViewerBlob = null;
         state.activeViewerEntry = null;
         state.viewerZoomLevel = 1;
@@ -3715,6 +3864,7 @@
         els.viewerDownloadLabel.textContent = state.sourceType === 'zip_archive' ? 'Extract & Save' : 'Download';
 
         els.universalViewerContainer.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding: 2rem;">Loading content...</div>';
+        pushModalHistory('universalViewer');
         els.modalUniversalViewer.classList.add('open');
 
         els.viewerImageTools.classList.add('hidden');
@@ -3752,10 +3902,14 @@
         }
       }
 
-      function closeUniversalViewer() {
+      function closeUniversalViewer(fromPopstate = false) {
         cleanupActiveViewer();
         els.universalViewerContainer.innerHTML = '';
+        const wasOpen = els.modalUniversalViewer.classList.contains('open');
         els.modalUniversalViewer.classList.remove('open');
+        if (wasOpen && !fromPopstate && window.history.state && window.history.state.webzipType === 'modal') {
+          try { window.history.back(); } catch (e) {}
+        }
       }
 
       function setViewerTab(tabKey) {
@@ -3991,6 +4145,7 @@
           <div class="info-value">${state.sourceType === 'zip_archive' ? `Archive (${state.zipArchiveName})` : 'Local Storage'}</div>
         `;
 
+        pushModalHistory('itemInfo');
         els.modalItemInfo.classList.add('open');
       }
 
@@ -4000,6 +4155,7 @@
 
         state.renameTargetEntry = entry;
         els.inputRenameVal.value = entry.name;
+        pushModalHistory('rename');
         els.modalRename.classList.add('open');
         setTimeout(() => els.inputRenameVal.focus(), 100);
       }
@@ -4086,11 +4242,28 @@
         renderStagedFiles();
         els.createArchiveName.value = 'Archive.zip';
         setCompressionLevel(state.createCompressionLevel || 6);
+        pushModalHistory('createArchive');
         els.modalCreateArchive.classList.add('open');
       }
 
-      function closeCreateArchiveModal() {
+      function closeCreateArchiveModal(fromPopstate = false) {
+        const wasOpen = els.modalCreateArchive.classList.contains('open');
         els.modalCreateArchive.classList.remove('open');
+        if (wasOpen && !fromPopstate && window.history.state && window.history.state.webzipType === 'modal') {
+          try { window.history.back(); } catch (e) {}
+        }
+      }
+
+      function handleCreateNewZipClick() {
+        openCreateArchiveModal();
+        if (isMobileOrWebView()) {
+          setTimeout(() => {
+            if (els.inputStageFiles) {
+              els.inputStageFiles.value = '';
+              els.inputStageFiles.click();
+            }
+          }, 150);
+        }
       }
 
       function setCompressionLevel(level) {
@@ -4195,8 +4368,15 @@
           const compType = level === 0 ? 'STORE' : 'DEFLATE';
           const compOpts = level === 0 ? null : { level: level };
 
+          // Use streamed processing (streamFiles: true) to prevent Out-Of-Memory crashes in Android WebView
           const contentBlob = await zip.generateAsync(
-            { type: 'blob', compression: compType, compressionOptions: compOpts },
+            {
+              type: 'blob',
+              compression: compType,
+              compressionOptions: compOpts,
+              streamFiles: true, // Memory safety: stream files chunk-by-chunk
+              mimeType: 'application/zip',
+            },
             metadata => updateProgress(`Compressing "${metadata.currentFile || archiveName}"`, metadata.percent)
           );
 
@@ -4310,8 +4490,14 @@
         });
 
         // Open Zip
-        els.btnOpenArchive.addEventListener('click', () => els.fileArchiveInput.click());
-        els.btnDropzoneOpenZip.addEventListener('click', () => els.fileArchiveInput.click());
+        els.btnOpenArchive.addEventListener('click', () => {
+          els.fileArchiveInput.value = '';
+          els.fileArchiveInput.click();
+        });
+        els.btnDropzoneOpenZip.addEventListener('click', () => {
+          els.fileArchiveInput.value = '';
+          els.fileArchiveInput.click();
+        });
         els.fileArchiveInput.addEventListener('change', (e) => {
           if (e.target.files && e.target.files.length > 0) {
             loadArchiveFromFile(e.target.files[0]);
@@ -4320,10 +4506,10 @@
         });
 
         // Create Zip
-        els.btnNewArchive.addEventListener('click', () => openCreateArchiveModal());
-        els.btnDropzoneCreateZip.addEventListener('click', () => openCreateArchiveModal());
-        els.btnCloseCreateModal.addEventListener('click', closeCreateArchiveModal);
-        els.btnCancelCreate.addEventListener('click', closeCreateArchiveModal);
+        els.btnNewArchive.addEventListener('click', handleCreateNewZipClick);
+        els.btnDropzoneCreateZip.addEventListener('click', handleCreateNewZipClick);
+        els.btnCloseCreateModal.addEventListener('click', () => closeCreateArchiveModal(false));
+        els.btnCancelCreate.addEventListener('click', () => closeCreateArchiveModal(false));
 
         // Compression Slider
         els.compressionLevelRange.addEventListener('input', (e) => {
@@ -4445,8 +4631,8 @@
         });
 
         // Universal Viewer Modal Events
-        els.btnCloseViewerModal.addEventListener('click', closeUniversalViewer);
-        els.btnCloseViewerBottom.addEventListener('click', closeUniversalViewer);
+        els.btnCloseViewerModal.addEventListener('click', () => closeUniversalViewer(false));
+        els.btnCloseViewerBottom.addEventListener('click', () => closeUniversalViewer(false));
 
         // Universal Viewer Tabs
         els.tabBtnPreview.addEventListener('click', () => setViewerTab('preview'));
@@ -4578,8 +4764,8 @@
         // Keyboard ESC
         window.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
-            closeUniversalViewer();
-            closeCreateArchiveModal();
+            closeUniversalViewer(false);
+            closeCreateArchiveModal(false);
             closeRowContextMenu();
             els.modalItemInfo.classList.remove('open');
             els.modalRename.classList.remove('open');
@@ -4591,11 +4777,35 @@
         [els.modalCreateArchive, els.modalUniversalViewer, els.modalItemInfo, els.modalRename, els.modalEncryptedAlert].forEach(modal => {
           modal.addEventListener('click', (e) => {
             if (e.target === modal) {
-              modal.classList.remove('open');
-              if (modal === els.modalUniversalViewer) closeUniversalViewer();
+              if (modal === els.modalUniversalViewer) closeUniversalViewer(false);
+              else if (modal === els.modalCreateArchive) closeCreateArchiveModal(false);
+              else modal.classList.remove('open');
             }
           });
         });
+
+        // Android & Hardware Back Button / PopState Navigation
+        window.addEventListener('popstate', handleBackNavigation);
+
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+          try {
+            window.Capacitor.Plugins.App.addListener('backButton', ({ canGoBack }) => {
+              if (hasAnyOpenModal()) {
+                closeAllOpenModals();
+              } else if (canNavigateUp()) {
+                navigateUpOneLevel(true);
+              } else if (state.sourceType && state.sourceType !== 'none') {
+                closeActiveView();
+              } else if (canGoBack) {
+                window.history.back();
+              } else {
+                window.Capacitor.Plugins.App.exitApp();
+              }
+            });
+          } catch (err) {
+            console.warn('Capacitor App backButton listener registration:', err);
+          }
+        }
       }
 
       // Initialization with Restored Preferences
